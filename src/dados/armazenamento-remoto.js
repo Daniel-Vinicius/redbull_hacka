@@ -3,7 +3,7 @@
  * ==========================================
  *
  * Existe para UM cenário: testar a jogabilidade com várias pessoas, cada uma
- * no seu aparelho, atrás de `npm run servidor` (ou de um túnel tipo ngrok).
+ * no seu aparelho, atrás de `npm run dev` (ou de um túnel tipo ngrok).
  * Com localStorage cada celular teria o seu próprio placar isolado.
  *
  * NÃO é o modo da entrega. No GitHub Pages não existe API, a sonda falha e o

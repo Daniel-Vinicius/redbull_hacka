@@ -53,7 +53,9 @@ export function modo() {
  * aparelhos apareçam sozinhas durante um teste em rede. Nunca é chamado
  * durante uma rodada cronometrada.
  *
- * @returns {Promise<boolean>} true se o placar mudou
+ * @returns {Promise<boolean>} true se o TAMANHO do placar mudou. É heurística
+ *   de propósito: comparar os arrays inteiro a cada 5 s custaria mais do que
+ *   vale, e a única mudança que interessa aqui é alguém novo ter entrado.
  */
 export async function sincronizar() {
   try {
@@ -84,8 +86,8 @@ export function topo() {
  * no modo remoto isso vem do servidor. Como a chamada acontece na transição
  * para a tela de placar, o jogador não percebe a espera.
  *
- * @param {object} parcial `{sabor, rotulo, erroTotalMs, melhorErroMs, venceu}`
- *   sem o número — o rótulo é completado com o número devolvido.
+ * @param {object} parcial `{sabor, nome, erroTotalMs, melhorErroMs, venceu}`
+ *   sem o número de chegada, que é atribuído por quem grava.
  * @returns {Promise<{numero: number, posicao: number, total: number}>}
  */
 export async function registrar(parcial) {

@@ -7,7 +7,16 @@
  * sorteia uma — quem joga duas vezes seguidas não lê a mesma linha.
  *
  * Tom: caixa alta, 2 a 6 palavras, quem apanha é o relógio e não o jogador.
+ *
+ * Onde a copy cita o limite de erro, ela o DERIVA do `config.js` em vez de
+ * trazer "1,50 s" digitado. Calibrar o jogo é mexer numa constante, e a frase
+ * na tela não pode ficar mentindo por causa disso.
  */
+
+import { CONFIG } from './config.js'
+
+/** O limite de erro total, como aparece na tela: "1,50". */
+const LIMITE = (CONFIG.LIMITE_ERRO_TOTAL_MS / 1000).toFixed(2).replace('.', ',')
 
 /** Frase exibida durante a contagem regressiva, antes de cada tentativa. */
 export const FRASE_PREPARO = 'PRESSIONE NO TEMPO CERTO. CONCENTRE-SE!'
@@ -39,6 +48,9 @@ export const MENSAGEM_NAO_PAROU = 'TEMPO. LITERALMENTE.'
 /** Rótulo do orçamento de erro, mostrado a cada tentativa. */
 export const ROTULO_ORCAMENTO = 'ERRO TOTAL'
 
+/** Chamada do prêmio na tela de atração. Deriva do limite, como o resto. */
+export const PROMESSA_PREMIO = `Erro total de até ${LIMITE} s leva um Red Bull.`
+
 /**
  * Manchetes da tela de resultado.
  * @type {Record<string, {titulo: string, linha: string}>}
@@ -50,11 +62,11 @@ export const FINAL = Object.freeze({
   },
   consistencia: {
     titulo: 'GANHOU SUAS ASAS',
-    linha: 'Fechou as três somando menos de 1,50 s de erro. Pega sua lata.',
+    linha: `Fechou as três somando até ${LIMITE} s de erro. Pega sua lata.`,
   },
   derrota: {
     titulo: 'O RELÓGIO VENCEU',
-    linha: 'Some menos de 1,50 s de erro nas três tentativas e a lata é sua.',
+    linha: `Some até ${LIMITE} s de erro nas três tentativas e a lata é sua.`,
   },
 })
 

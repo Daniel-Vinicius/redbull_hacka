@@ -27,8 +27,8 @@ cliques **não funciona**, e no Safari do iPad nem isso é possível.
 
 | Comando | O que faz |
 |---|---|
-| `npm test` | 62 testes das regras e do formato do placar. Runner nativo do Node, zero dependências. |
-| `npm run smoke` | Joga duas partidas num Chromium headless com viewport de iPad — uma boa e uma ruim — e confere os dois desfechos. Falha com erro de console, 404, carrossel descentralizado ou derrota entrando no placar. Regrava os prints em `docs/prints/`. |
+| `npm test` | 81 testes das regras, do formato do placar e da degradação do armazenamento. Runner nativo do Node, zero dependências. |
+| `npm run smoke` | Joga duas partidas num Chromium headless com viewport de iPad — uma boa e uma ruim — e confere os dois desfechos. Falha com erro de console, 404, carrossel descentralizado ou derrota entrando no placar. Regrava os prints em `docs/prints/`. **Exige `npm run dev` rodando em outro terminal** — sem servidor, o Playwright morre com `ERR_CONNECTION_REFUSED`. |
 | `npm run smoke:pages` | Monta o conjunto que o **git publica** (`git ls-files`), serve estático sem API nenhuma e joga em cima dele. É o ensaio do GitHub Pages. |
 | `npm run assets` | Regera `public/media/` e `src/core/sabores.gerado.js` a partir de `assets/`. Só é preciso se os materiais da marca mudarem. |
 
@@ -69,7 +69,7 @@ configurar. Ver [Placar](#placar) abaixo.
 
 | Como | Condição |
 |---|---|
-| **Erro total** | Somar menos de **1,50 s** de erro nas três tentativas. |
+| **Erro total** | Somar **até 1,50 s** de erro nas três tentativas — o limite conta como vitória (`<=`). Vale só para quem parou o cronômetro nas três: abandonar uma rodada desclassifica, porque o tempo dela é uma penalidade sintética e não uma medição do jogador. |
 | **Cravada de primeira** | Acertar o alvo com 2 casas decimais logo na 1ª tentativa. Encerra a partida na hora. |
 
 Cravar na 2ª ou na 3ª não leva a lata sozinho: **zera o erro daquela rodada** e o
@@ -177,7 +177,7 @@ src/
     armazenamento-local.js    localStorage
     armazenamento-remoto.js   API HTTP
   ui/
-    render.js           estado → DOM. O único módulo que toca `document`
+    render.js           estado → DOM. O único módulo que ESCREVE no DOM
     carrossel.js        gesto e navegação do slider de sabores
 
 styles/
@@ -192,7 +192,7 @@ tools/
   smoke.mjs             duas partidas headless + geração de prints
   smoke-pages.mjs       o mesmo smoke, mas só com o que o git publica
 
-tests/                  62 testes, `node --test`
+tests/                  81 testes, `node --test`
 docs/                   arquitetura, decisões e prints
 ```
 
@@ -206,7 +206,9 @@ evento → regras (puras) → estado → render → DOM
 
 1. **Nada em `core/` toca `document`. Nada em `ui/` decide regra.** É por isso
    que `regras.js` é testável sem navegador: tudo que varia — o sorteio, o
-   relógio — entra por parâmetro.
+   relógio — entra por parâmetro. Sendo exato: `render.js` é o único módulo que
+   **escreve** no DOM; `main.js` só lê o `document` para ligar os listeners na
+   carga.
 2. **Uma fonte de verdade.** O estado mora em `estado.js`. É proibido descobrir
    o placar lendo `textContent` de um elemento.
 3. **Troca de tela é troca de atributo.** `render` marca `data-ativa` na seção
@@ -276,11 +278,11 @@ dele.
 | | |
 |---|---|
 | Primeiro carregamento | **398 KB** em 28 recursos, DOMContentLoaded em ~35 ms |
-| Latas do carrossel | +540 KB, carregadas só quando a partida acaba |
+| Latas do carrossel | +559 KB (12 arquivos), carregadas só quando a partida acaba |
 | Assets originais → servidos | 132 MB → 1,5 MB |
 | Partida até o veredito | ~40 s no caso médio (teto do briefing: 120 s) |
 | Telas de leitura depois | 30 s cada, e todas avançam no toque |
-| Testes | 62 unitários + smoke E2E nos dois modos de placar |
+| Testes | 81 unitários + smoke E2E nos dois modos de placar |
 
 ---
 

@@ -10,14 +10,18 @@
  *  - O timestamp é capturado na PRIMEIRA linha do handler, antes de qualquer
  *    leitura ou escrita no DOM. Um layout recalculado antes da medição vira
  *    erro de dezenas de milissegundos.
- *  - Só o ponteiro que iniciou a rodada pode encerrá-la. Numa feira, o amigo
- *    encostando na tela ou a palma da mão na borda dispara um `pointerdown`
- *    próprio — sem esse filtro, a tentativa vira lixo.
+ *  - Só o toque principal encerra a rodada. Numa feira, o amigo encostando na
+ *    tela ou a palma da mão na borda dispara um `pointerdown` próprio — sem
+ *    filtro, a tentativa vira lixo. O filtro em si (`evento.isPrimary`) fica em
+ *    `main.js`, junto do listener: este módulo não conhece eventos de DOM.
  *  - `pointercancel` e troca de aba invalidam a tentativa em silêncio em vez
  *    de gravar um tempo corrompido.
  *
- * A latência de toque do aparelho (~75 ms num iPad) aparece nos dois toques e
- * some na subtração, então não é compensada aqui.
+ * A largada é automática (a buzina dispara sozinha), então só a parada é um
+ * toque: a latência do aparelho (~75 ms num iPad) entra INTEIRA no tempo
+ * medido, sem cancelar. Não é compensada porque é igual para todos no mesmo
+ * aparelho — o jogo compara jogadores entre si, não contra um cronômetro
+ * oficial. É por isso que a rodada 1 tem piso de 2 s (ver `config.js`).
  */
 
 /**

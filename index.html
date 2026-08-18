@@ -36,7 +36,10 @@
 
 <body data-tela="atracao">
 
-  <main id="app" aria-live="polite">
+  <!-- Sem `aria-live` no <main>: com ele, cada troca de tela reanunciava a
+       página inteira. As regiões vivas são só os trechos que mudam sozinhos,
+       marcados individualmente abaixo. -->
+  <main id="app">
 
     <!-- ══ ATRAÇÃO ══════════════════════════════════════════════════════════
        Primeira e única tela que um passante vê parado. Precisa explicar o
@@ -62,9 +65,11 @@
           <span class="botao-gigante__linha2">PARA COMEÇAR</span>
         </button>
 
+        <!-- O texto vem de core/mensagens.js, derivado do limite em
+             config.js: recalibrar o jogo não pode deixar a promessa mentindo. -->
         <p class="atracao__premio">
           <img src="public/media/img/lata-icone.webp" alt="" width="28" height="28">
-          Erro total abaixo de 1,50 s leva um Red Bull.
+          <span id="atracao-premio"></span>
         </p>
       </div>
 
@@ -83,12 +88,16 @@
       <p class="kicker" id="preparo-tentativa">TENTATIVA 1 DE 3</p>
 
       <div class="alvo">
-        <p class="alvo__rotulo">SEU ALVO</p>
-        <p class="display display--alvo" id="preparo-alvo" aria-label="alvo em segundos"></p>
-        <p class="alvo__unidade">SEGUNDOS</p>
+        <p class="alvo__rotulo" id="alvo-rotulo">SEU ALVO</p>
+        <!-- `aria-label` num <p> é ignorado: `role=paragraph` não aceita nome
+             acessível. O rótulo visível ao lado já cumpre o papel, e
+             `aria-labelledby` amarra os dois sem texto duplicado. -->
+        <p class="display display--alvo" id="preparo-alvo"
+           aria-labelledby="alvo-rotulo preparo-alvo alvo-unidade"></p>
+        <p class="alvo__unidade" id="alvo-unidade">SEGUNDOS</p>
       </div>
 
-      <p class="frase-preparo" id="preparo-frase"></p>
+      <p class="frase-preparo" id="preparo-frase" aria-live="polite"></p>
 
       <div class="contagem" id="contagem" aria-hidden="true"><span>3</span></div>
     </section>
@@ -113,14 +122,17 @@
        Resultado de uma tentativa, mais o orçamento de erro correndo. É o
        orçamento que ensina a regra sem texto de instrução. -->
     <section class="tela tela--feedback" data-para="feedback">
-      <p class="kicker">SEU TEMPO</p>
-      <p class="display display--tempo" id="feedback-tempo"></p>
+      <p class="kicker" id="feedback-rotulo">SEU TEMPO</p>
+      <p class="display display--tempo" id="feedback-tempo"
+         aria-labelledby="feedback-rotulo feedback-tempo"></p>
       <p class="delta" id="feedback-delta"></p>
-      <p class="mensagem" id="feedback-mensagem"></p>
+      <!-- A mensagem e o orçamento são o retorno da jogada: chegam depois da
+           troca de tela e precisam ser anunciados sozinhos. -->
+      <p class="mensagem" id="feedback-mensagem" aria-live="polite"></p>
 
-      <div class="orcamento" id="feedback-orcamento">
+      <div class="orcamento" id="feedback-orcamento" aria-live="polite">
         <p class="orcamento__rotulo">
-          <span id="orcamento-titulo">ERRO TOTAL</span>
+          <span id="orcamento-titulo"></span>
           <strong id="orcamento-valor"></strong>
         </p>
         <div class="orcamento__trilho"><i id="orcamento-barra"></i></div>
@@ -141,7 +153,7 @@
       </div>
 
       <div class="final__total">
-        <p class="kicker">ERRO TOTAL</p>
+        <p class="kicker" id="final-total-rotulo"></p>
         <p class="display display--total" id="final-total"></p>
         <p class="final__limite" id="final-limite"></p>
       </div>

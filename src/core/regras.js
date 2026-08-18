@@ -93,6 +93,10 @@ export function ehCravada(tempoMs, alvoMs) {
 export const FAIXAS = Object.freeze([
   { id: 'quase', ateMs: 150 },
   { id: 'bom', ateMs: CONFIG.LIMITE_ERRO_TOTAL_MS / CONFIG.TENTATIVAS },
+  // 1.500 ms aqui é o limite de UMA tentativa e coincide com
+  // LIMITE_ERRO_TOTAL_MS por acaso — são grandezas diferentes (uma rodada vs. a
+  // partida inteira). Derivar uma da outra amarraria duas coisas que devem
+  // poder ser calibradas em separado.
   { id: 'medio', ateMs: 1_500 },
   { id: 'longe', ateMs: Infinity },
 ])
@@ -174,6 +178,22 @@ export function deltaDaTentativa(tentativa) {
  */
 export function erroTotalDe(tentativas) {
   return tentativas.reduce((soma, tentativa) => soma + tentativa.erroMs, 0)
+}
+
+/**
+ * O jogador já estourou o orçamento de erro?
+ *
+ * Existe para o render poder PERGUNTAR em vez de recalcular. A barra do
+ * feedback fica vermelha por isso, e a fronteira do vermelho tem que ser
+ * exatamente a mesma que decide a partida em `avaliarPartida` — duas
+ * comparações independentes contra a mesma constante são duas chances de
+ * divergirem depois.
+ *
+ * @param {Tentativa[]} tentativas
+ * @returns {boolean}
+ */
+export function estourouOrcamento(tentativas) {
+  return erroTotalDe(tentativas) > CONFIG.LIMITE_ERRO_TOTAL_MS
 }
 
 /**

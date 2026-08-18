@@ -62,7 +62,13 @@ let estado = { ...INICIAL }
 /** @type {Array<(estado: Estado) => void>} */
 const ouvintes = []
 
-/** @returns {Estado} cópia rasa do estado atual */
+/**
+ * @returns {Estado} o estado atual — a referência viva, NÃO uma cópia.
+ *   Não mutar o retorno: toda mudança passa por `definir()`, que é quem avisa
+ *   os ouvintes. Quem precisa alterar uma lista copia antes (`[...tentativas]`).
+ *   Devolver `{ ...estado }` não resolveria: a cópia rasa continua
+ *   compartilhando o array `tentativas` e só daria falsa sensação de segurança.
+ */
 export function obter() {
   return estado
 }

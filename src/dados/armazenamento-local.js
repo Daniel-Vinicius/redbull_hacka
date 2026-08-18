@@ -35,8 +35,20 @@ export async function ler() {
   } catch {
     // Formato inesperado, navegação privada ou storage desabilitado: segue em
     // memória em vez de quebrar a tela.
-    somenteMemoria = true
-    return memoria
+    //
+    // Antes de desistir, tenta se curar: se o problema for só uma chave
+    // corrompida, apagá-la devolve o placar persistente na próxima partida. Sem
+    // isso, um único JSON quebrado condenava o totem a rodar o dia inteiro sem
+    // gravar nada, e a chave ruim nunca era sobrescrita. Se o `removeItem`
+    // também falhar, o storage está mesmo indisponível — aí sim, só memória.
+    try {
+      localStorage.removeItem(CONFIG.RANKING_CHAVE)
+      memoria = []
+      return memoria
+    } catch {
+      somenteMemoria = true
+      return memoria
+    }
   }
 }
 

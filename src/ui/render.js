@@ -2,9 +2,14 @@
  * Renderização — estado → DOM
  * ============================
  *
- * Este é o único módulo autorizado a tocar o `document`. Ele não decide nada:
- * lê o estado e desenha. Nenhuma regra do jogo, nenhum cálculo de vitória e
- * nenhum acesso ao placar acontecem aqui.
+ * Este é o único módulo autorizado a ESCREVER no `document`. Ele não decide
+ * nada: lê o estado e desenha. Nenhuma regra do jogo, nenhum cálculo de vitória
+ * e nenhum acesso ao placar acontecem aqui — quando precisa de um veredito, ele
+ * pergunta a `core/regras.js`.
+ *
+ * (`main.js` também lê o `document`, para ligar os listeners uma vez na carga,
+ * e `carrossel.js` monta as próprias latas. Nenhum dos dois escreve estado de
+ * jogo na tela: essa é a fronteira que importa.)
  *
  * A troca de tela é feita por um atributo em <body> (`data-tela`), nunca
  * reconstruindo HTML — o layout já está no `index.html` e só muda de
@@ -16,6 +21,7 @@ import { TELAS } from '../core/estado.js'
 import {
   deltaDaTentativa,
   erroTotalDe,
+  estourouOrcamento,
   faixaDaTentativa,
   formatarDelta,
   formatarSegundos,
@@ -25,6 +31,8 @@ import {
   CONTAGEM,
   FINAL,
   FRASE_PREPARO,
+  PROMESSA_PREMIO,
+  ROTULO_ORCAMENTO,
   SABOR,
   textoDaPosicao,
 } from '../core/mensagens.js'
@@ -53,6 +61,10 @@ const el = {
   feedbackDelta: $('feedback-delta'),
   feedbackMensagem: $('feedback-mensagem'),
   feedbackBarra: $('feedback-barra'),
+  atracaoPremio: $('atracao-premio'),
+  orcamento: $('feedback-orcamento'),
+  orcamentoTitulo: $('orcamento-titulo'),
+  finalTotalRotulo: $('final-total-rotulo'),
   orcamentoValor: $('orcamento-valor'),
   orcamentoBarra: $('orcamento-barra'),
 
@@ -75,6 +87,13 @@ const el = {
   finalPosicao: $('final-posicao'),
   placarFinalLista: $('placar-final-lista'),
 }
+
+// Copy fixa, escrita uma vez na carga. Ela vive em `core/mensagens.js` — e não
+// no HTML — porque cita o limite de erro, que é derivado do `config.js`.
+// Recalibrar o jogo mexendo numa constante não pode deixar a tela mentindo.
+el.atracaoPremio.textContent = PROMESSA_PREMIO
+el.orcamentoTitulo.textContent = ROTULO_ORCAMENTO
+el.finalTotalRotulo.textContent = ROTULO_ORCAMENTO
 
 /**
  * Escreve um número no display de largura travada.
@@ -182,7 +201,10 @@ function renderOrcamento(tentativas) {
 
   el.orcamentoValor.textContent = `${formatarSegundos(gasto)} / ${formatarSegundos(limite)}`
   el.orcamentoBarra.style.transform = `scaleX(${Math.min(1, gasto / limite)})`
-  el.orcamentoBarra.parentElement.dataset.estourou = String(gasto > limite)
+  // No contêiner, não no trilho: o rótulo vem ANTES do trilho no HTML, então
+  // nenhum seletor de irmão alcançava o número. Marcando o pai, a barra e o
+  // número ficam vermelhos juntos.
+  el.orcamento.dataset.estourou = String(estourouOrcamento(tentativas))
 }
 
 /**
@@ -221,7 +243,6 @@ function renderResultado(estado) {
   const { resultado, tentativas, assinatura } = estado
   const texto = FINAL[resultado.motivo ?? 'derrota']
 
-  el.corpo.dataset.vitoria = String(resultado.venceu)
   el.finalSelo.src = `${CAMINHO_IMG}/${resultado.venceu ? 'asas.webp' : 'barreira.webp'}`
   el.finalTitulo.textContent = texto.titulo
   el.finalLinha.textContent = texto.linha
@@ -281,6 +302,10 @@ function renderPlacarFinal(estado, melhores) {
  */
 export function render(estado, melhores) {
   el.corpo.dataset.tela = estado.tela
+  // Derivado, nunca escrito de fora. Já foi setado aqui e limpo no `main.js`,
+  // e um atributo com dois donos é como o primeiro frame do jogador seguinte
+  // acaba herdando o veredito do anterior.
+  el.corpo.dataset.vitoria = String(estado.resultado?.venceu ?? false)
   // Uma tela visível por vez. `data-tela` no <body> continua existindo porque
   // o CSS o usa para variações de tema, mas quem manda na visibilidade é aqui.
   for (const tela of el.telas) {
@@ -311,15 +336,22 @@ export function render(estado, melhores) {
       escreverDisplay(el.feedbackTempo, ultima.parou ? formatarSegundos(ultima.tempoMs) : '--,--')
       el.feedbackTempo.dataset.faixa = faixaDaTentativa(ultima)
       el.feedbackDelta.textContent = ultima.parou ? formatarDelta(delta) : ''
-      el.feedbackDelta.dataset.lado = delta < 0 ? 'antes' : 'depois'
+      // Três lados, não dois. Numa cravada o delta é exatamente 0 e caía em
+      // 'depois' — a jogada perfeita saía em vermelho, a mesma cor de quem
+      // atrasou, ao lado da mensagem "CRAVOU.".
+      el.feedbackDelta.dataset.lado = delta < 0 ? 'antes' : delta > 0 ? 'depois' : 'exato'
       el.feedbackMensagem.textContent = estado.mensagem
       renderOrcamento(estado.tentativas)
 
-      // Reinicia a animação da barra do zero a cada tentativa.
+      // Reinicia a animação da barra do zero a cada tentativa: tirar e repor
+      // o nome, com um reflow forçado no meio, é o que faz o navegador tocar
+      // de novo. A duração vai por custom property — ver o comentário em
+      // `.barra-tempo i` no CSS.
       const barra = el.feedbackBarra.firstElementChild
-      barra.style.animation = 'none'
+      barra.style.setProperty('--duracao', `${CONFIG.FEEDBACK_MS}ms`)
+      barra.style.animationName = 'none'
       void barra.offsetWidth
-      barra.style.animation = `escorrer ${CONFIG.FEEDBACK_MS}ms linear both`
+      barra.style.animationName = 'escorrer'
       break
     }
 

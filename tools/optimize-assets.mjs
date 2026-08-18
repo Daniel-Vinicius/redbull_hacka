@@ -110,7 +110,8 @@ const ALTURA_CHIP = 560
 const ALTURA_CARROSSEL = 900
 
 /**
- * Favicon e ícone de Tela de Início, derivados do mesmo Can_Icon.png.
+ * Favicon e ícone de Tela de Início, derivados do mesmo `ORIGEM_FAVICON`
+ * (hoje a bandeira quadriculada; já foi a lata, que ficava ilegível a 32px).
  *
  * Dois tratamentos, porque os dois destinos se comportam de forma diferente:
  *  - a aba do navegador respeita transparência, e o ícone recortado fica legível

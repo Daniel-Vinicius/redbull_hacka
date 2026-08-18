@@ -14,8 +14,8 @@
  * Zero dependências: só `node:http` e `node:fs`.
  *
  * Uso:
- *   npm run servidor            → http://localhost:8000
- *   PORTA=3000 npm run servidor
+ *   npm run dev                 → http://localhost:8000
+ *   PORTA=3000 npm run dev
  *
  * API:
  *   GET    /api/ranking   → Registro[]

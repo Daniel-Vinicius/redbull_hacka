@@ -211,6 +211,8 @@
 }
 .delta[data-lado='antes'] { color: var(--rb-gelo); }
 .delta[data-lado='depois'] { color: var(--rb-vermelho); }
+/* Cravada: delta zero. Nem adiantou nem atrasou — não pode sair em vermelho. */
+.delta[data-lado='exato'] { color: var(--rb-amarelo); }
 
 .tela--feedback .mensagem { color: var(--rb-branco); max-width: 18ch; }
 
@@ -232,7 +234,11 @@
   height: 100%;
   background: var(--rb-vermelho);
   transform-origin: left;
-  animation: escorrer linear both;
+  /* A duração real chega por `--duracao`, escrita pelo render a partir de
+     CONFIG.FEEDBACK_MS. Vem por custom property e não pelo atalho `animation`
+     porque um valor inline no atalho seria atropelado pelo `!important` do
+     bloco `prefers-reduced-motion` — e a barra é informação, não enfeite. */
+  animation: escorrer var(--duracao, 2600ms) linear both;
 }
 @keyframes escorrer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
@@ -372,7 +378,6 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
   }
   .atracao__lata { height: min(20vh, 210px); }
   .atracao__texto { justify-items: center; text-align: center; gap: var(--gap-s); }
-  .atracao__recorde { text-align: center; }
 
   .tela--resultado {
     grid-template-columns: 1fr;
@@ -437,8 +442,10 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
   transform: scaleX(0);
   transition: transform var(--medio) var(--mola);
 }
-.orcamento__trilho[data-estourou='true'] i { background: var(--rb-vermelho); }
-.orcamento__trilho[data-estourou='true'] + .orcamento__rotulo strong,
+/* O flag vive no contêiner `.orcamento`. Já esteve no trilho, e aí o número
+   nunca ficava vermelho: o seletor de irmão `+ .orcamento__rotulo` apontava
+   para trás, mas no HTML o rótulo vem ANTES do trilho. */
+.orcamento[data-estourou='true'] .orcamento__trilho i { background: var(--rb-vermelho); }
 .orcamento[data-estourou='true'] strong { color: var(--rb-vermelho); }
 
 
@@ -468,7 +475,21 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
 }
 /* Amarelo do Tropical e verde do Melão não sustentam texto branco. */
 .sabor__faixa[data-texto-escuro='true'] { color: #0B0B14; }
-.sabor__faixa[data-texto-escuro='true'] .kicker { color: rgb(11 11 20 / 65%); }
+
+/* O kicker herda a tinta da faixa em vez de usar `--txt-fraco`.
+   `--txt-fraco` (#7C84A3) é calibrado para o fundo navy do jogo; sobre as
+   faixas coloridas ele desabava — 1,07:1 no Sugarfree, 1,10:1 na Nectarina,
+   1,63:1 na Cereja. "VOCÊ GANHOU UMA LATA" ficava invisível justamente na tela
+   que só o vencedor vê. Com `currentColor` o pior caso vira 3,96:1.
+   O corpo maior e o peso 700 não são enfeite: acima de 18,66px em negrito o
+   texto conta como "grande" na WCAG, cujo mínimo é 3:1 — é o que fecha AA sem
+   mexer na cor amostrada da lata. */
+.sabor__faixa .kicker {
+  color: currentColor;
+  font-size: clamp(1.2rem, 2.4vmin, 1.4rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
 
 .sabor__titulo {
   font-family: var(--fonte-titulo);
@@ -490,7 +511,6 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
   transition: transform var(--rapido) var(--mola);
 }
 .botao-pilula:active { transform: translate3d(0, 5px, 0); }
-.sabor__faixa[data-texto-escuro='true'] .botao-pilula { color: var(--rb-branco); }
 
 .carrossel {
   --slot: clamp(130px, 24vmin, 240px);

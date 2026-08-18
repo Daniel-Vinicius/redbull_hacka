@@ -35,7 +35,17 @@ export const TIPOS = {
  * @param {import('node:http').ServerResponse} resposta
  */
 export async function servirEstatico(raiz, caminhoUrl, resposta) {
-  const relativo = decodeURIComponent(caminhoUrl === '/' ? '/index.html' : caminhoUrl)
+  let relativo
+  try {
+    // `decodeURIComponent` lança URIError em percentagem solta (`GET /%`).
+    // Precisa estar DENTRO de um try: fora dele a exceção sobe até o servidor
+    // e derruba o processo — o `smoke-pages.mjs` chama esta função sem `await`
+    // e sem `catch`, então lá não havia nenhuma outra rede de segurança.
+    relativo = decodeURIComponent(caminhoUrl === '/' ? '/index.html' : caminhoUrl)
+  } catch {
+    resposta.writeHead(400).end('400')
+    return
+  }
   const alvo = resolve(join(raiz, normalize(relativo)))
 
   // Barreira de path traversal: `../../etc/passwd` sai da raiz servida.

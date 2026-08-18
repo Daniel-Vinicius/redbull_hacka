@@ -260,6 +260,14 @@ cor, escala e movimento. Se o áudio falhar, ninguém perde nada.
 - **O protótipo vai para o estande de quarta?** Se sim, entra a lista de
   operação: Acesso Guiado com senha em papel, service worker para offline real,
   checklist do aparelho. Nada disso está no caminho crítico da entrega.
+- **Degradação do placar remoto é bruta, de propósito.** Se a API cair no meio
+  do POST, `ranking.js` troca para o armazenamento local e regrava a partida ali
+  — o jogador não perde a lata dele. Mas o local numera a partir de 1 e não
+  conhece as jogadas que estavam no servidor: a tela seguinte mostra um placar
+  com uma linha só. Preferimos isso a fundir as duas listas, que produziria dois
+  jogadores com o mesmo número de chegada — ou seja, um placar errado em vez de
+  um placar curto. Só acontece no modo remoto, que é ferramenta de teste e não a
+  entrega. Coberto por `tests/dados.test.mjs`.
 
 ---
 

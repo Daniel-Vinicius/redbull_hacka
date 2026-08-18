@@ -72,9 +72,13 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
-/* `touch-action: manipulation` remove o atraso de ~300 ms do double-tap-zoom
-   em qualquer elemento tocável. */
-button, .tap { touch-action: manipulation; }
+/* `touch-action: manipulation` remove o atraso de ~300 ms do double-tap-zoom.
+   Vale para a página inteira, não só para os botões: fora deles o duplo toque
+   ainda disparava o smart zoom do Safari, e num totem sem operador uma tela
+   ampliada acidentalmente só volta ao normal quem souber como. O carrossel
+   redefine `touch-action: pan-y` no próprio trilho, para o arraste horizontal
+   continuar sendo dele. */
+html { touch-action: manipulation; }
 
 img {
   max-width: 100%;
@@ -254,5 +258,14 @@ button {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Exceção: a barra de tempo não é decoração, é informação. Ela é a única
+     pista de que a tela vai virar sozinha — zerá-la deixa quem pediu menos
+     movimento sem saber quanto tempo tem para ler. Não há deslocamento na
+     tela, só uma barra encolhendo no próprio eixo, que é o tipo de animação
+     que a diretriz permite manter. */
+  .barra-tempo i {
+    animation-duration: var(--duracao) !important;
   }
 }

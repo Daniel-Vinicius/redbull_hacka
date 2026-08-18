@@ -39,6 +39,9 @@ let agendamentos = []
 /** Handle do polling do placar. Só existe enquanto a atração está na tela. */
 let sondagem = null
 
+/** Trava de gravação: uma partida só entra no placar uma vez. */
+let gravandoPartida = false
+
 /**
  * Agenda uma ação futura registrando o handle para cancelamento em lote.
  * @param {() => void} acao
@@ -95,8 +98,7 @@ function desligarSondagem() {
 function voltarParaAtracao() {
   cancelarAgendamentos()
   cronometro.cancelar()
-  document.body.dataset.vitoria = 'false'
-  estado.reiniciar()
+  estado.reiniciar() // `data-vitoria` sai junto: o render o deriva do estado
   ligarSondagem()
 }
 
@@ -236,28 +238,42 @@ function irParaSabor() {
  * servidor — para que dois aparelhos jogando junto não gerem dois "TROPICAL 7".
  */
 async function confirmarSabor() {
-  cancelarAgendamentos()
+  // Guarda de reentrância. Entre o `await` da gravação e a troca de tela a
+  // tela de sabor continua visível e o botão continua clicável: no modo
+  // remoto, com até RANKING_TIMEOUT_MS de rede, um segundo toque gravava a
+  // mesma partida de novo e a pessoa aparecia duas vezes no placar. Toque
+  // duplo em botão grande é comportamento padrão de visitante de feira.
+  // A flag cobre também a entrada por teclado, que `disabled` no botão não
+  // alcançaria.
+  if (gravandoPartida) return
+  gravandoPartida = true
 
-  const { resultado, sabor } = estado.obter()
-  const escolhido = sabor ?? saborInicial()
+  try {
+    cancelarAgendamentos()
 
-  const { numero, posicao, total } = await ranking.registrar({
-    sabor: escolhido.id,
-    nome: escolhido.nome,
-    erroTotalMs: resultado.erroTotalMs,
-    melhorErroMs: resultado.melhorErroMs,
-    venceu: resultado.venceu,
-  })
+    const { resultado, sabor } = estado.obter()
+    const escolhido = sabor ?? saborInicial()
 
-  estado.definir({
-    tela: TELAS.PLACAR,
-    identidade: identidadePara(escolhido.id, numero),
-    posicao: { posicao, total },
-  })
+    const { numero, posicao, total } = await ranking.registrar({
+      sabor: escolhido.id,
+      nome: escolhido.nome,
+      erroTotalMs: resultado.erroTotalMs,
+      melhorErroMs: resultado.melhorErroMs,
+      venceu: resultado.venceu,
+    })
 
-  // O totem se recicla sozinho: ninguém precisa reiniciar entre um visitante
-  // e outro, que é o requisito real de um estande sem operador dedicado.
-  agendar(voltarParaAtracao, CONFIG.INATIVIDADE_FINAL_MS)
+    estado.definir({
+      tela: TELAS.PLACAR,
+      identidade: identidadePara(escolhido.id, numero),
+      posicao: { posicao, total },
+    })
+
+    // O totem se recicla sozinho: ninguém precisa reiniciar entre um visitante
+    // e outro, que é o requisito real de um estande sem operador dedicado.
+    agendar(voltarParaAtracao, CONFIG.INATIVIDADE_FINAL_MS)
+  } finally {
+    gravandoPartida = false
+  }
 }
 
 // ═══ Entrada do jogador ════════════════════════════════════════════════════
@@ -328,7 +344,13 @@ setaProxima.addEventListener('pointerdown', () => carrossel.proximo())
 
 // O iOS dispara `pointercancel` quando o sistema assume o ponteiro (gesto de
 // borda, notificação). Sem tratar, a rodada fica em estado zumbi.
-botaoParar.addEventListener('pointercancel', () => cronometro.cancelar())
+//
+// `isPrimary` aqui pelo mesmo motivo que em `aoParar`: sem a guarda, o dedo do
+// amigo não conseguia PARAR a rodada mas conseguia MATÁ-LA — e o jogador ficava
+// olhando uma tela inerte até a rede de segurança fechar a tentativa.
+botaoParar.addEventListener('pointercancel', (evento) => {
+  if (evento.isPrimary) cronometro.cancelar()
+})
 
 /**
  * Operação por teclado, para o avaliador que abrir o link num notebook.
@@ -344,6 +366,21 @@ document.addEventListener('keydown', (evento) => {
   }
 
   if (evento.key !== ' ' && evento.key !== 'Enter') return
+
+  // Enter/Espaço com foco numa seta do carrossel tem que NAVEGAR, não
+  // confirmar. As setas só escutam `pointerdown`, então sem este desvio o
+  // handler global engolia a tecla e mandava o jogador direto para o placar
+  // com o sabor errado — quem navega por teclado é exatamente quem não
+  // consegue apontar para a lata que quer.
+  if (document.activeElement === setaAnterior) {
+    evento.preventDefault()
+    return carrossel.anterior()
+  }
+  if (document.activeElement === setaProxima) {
+    evento.preventDefault()
+    return carrossel.proximo()
+  }
+
   evento.preventDefault()
 
   if (tela === TELAS.ATRACAO) comecarPartida()

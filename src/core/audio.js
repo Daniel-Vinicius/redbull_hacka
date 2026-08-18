@@ -39,7 +39,11 @@ export function criarAudio() {
   const comContexto = (fn) => {
     try {
       if (!ctx || ctx.state === 'closed') return
-      if (ctx.state === 'suspended') ctx.resume()
+      // `.catch` obrigatório: `resume()` devolve uma Promise, e o `try/catch`
+      // síncrono ao redor NÃO pega a rejeição dela. Sem isso, uma política de
+      // autoplay do iOS vira `unhandledrejection` — e o handler global do
+      // `main.js` reinicia o totem no meio da rodada do jogador.
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {})
       fn(ctx, ctx.currentTime)
     } catch {
       /* som é ornamental: falha em silêncio */
@@ -83,7 +87,7 @@ export function criarAudio() {
     destravar() {
       try {
         if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)()
-        if (ctx.state === 'suspended') ctx.resume()
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {})
       } catch {
         ctx = null
       }
