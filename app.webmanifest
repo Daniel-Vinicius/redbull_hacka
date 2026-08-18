@@ -9,6 +9,8 @@
   "theme_color": "#0C1030",
   "orientation": "any",
   "icons": [
+    { "src": "public/media/img/favicon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "public/media/img/favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "public/media/img/lata-icone.webp", "sizes": "320x320", "type": "image/webp", "purpose": "any" }
   ]
 }

@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "assets": "node tools/optimize-assets.mjs",
-    "dev": "python3 -m http.server 8000",
+    "dev": "node tools/servidor.mjs",
+    "smoke": "node tools/smoke.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "devDependencies": {

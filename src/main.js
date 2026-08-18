@@ -15,8 +15,8 @@
 import { CONFIG } from './core/config.js'
 import { criarAudio } from './core/audio.js'
 import { criarCronometro } from './core/cronometro.js'
-import { proximaIdentidade } from './core/jogadores.js'
-import { mensagemPara } from './core/mensagens.js'
+import { identidadePara, saborInicial, SABORES } from './core/jogadores.js'
+import { assinaturaAleatoria, mensagemPara } from './core/mensagens.js'
 import {
   avaliarPartida,
   faixaDaTentativa,
@@ -27,16 +27,17 @@ import {
 import * as estado from './core/estado.js'
 import { TELAS } from './core/estado.js'
 import * as ranking from './dados/ranking.js'
+import { criarCarrossel } from './ui/carrossel.js'
 import { render } from './ui/render.js'
 
 const audio = criarAudio()
 const cronometro = criarCronometro()
 
-/** Ponteiro que iniciou a rodada. Só ele pode encerrá-la. */
-let ponteiroAtivo = null
-
 /** Todos os `setTimeout` em voo, para que trocar de tela nunca deixe resto. */
 let agendamentos = []
+
+/** Handle do polling do placar. Só existe enquanto a atração está na tela. */
+let sondagem = null
 
 /**
  * Agenda uma ação futura registrando o handle para cancelamento em lote.
@@ -60,28 +61,58 @@ function desenhar() {
 
 estado.observar(desenhar)
 
+// ═══ Polling do placar ══════════════════════════════════════════════════════
+
+/**
+ * Liga a busca periódica do placar.
+ *
+ * Só roda na tela de atração: durante uma rodada cronometrada não pode haver
+ * nenhuma requisição concorrendo com a medição de tempo. No modo local a
+ * chamada é instantânea e não custa nada; no modo remoto, é o que faz a
+ * partida de outro aparelho aparecer sozinha no placar.
+ */
+function ligarSondagem() {
+  desligarSondagem()
+  sondagem = setInterval(async () => {
+    if (await ranking.sincronizar()) desenhar()
+  }, CONFIG.RANKING_POLL_MS)
+}
+
+function desligarSondagem() {
+  if (sondagem !== null) clearInterval(sondagem)
+  sondagem = null
+}
+
 // ═══ Ciclo de vida da partida ══════════════════════════════════════════════
 
 /**
  * Volta o totem ao estado limpo.
  *
- * É chamado na ENTRADA da atração — nunca na saída da tela final — para que
+ * É chamado na ENTRADA da atração — nunca na saída da última tela — para que
  * qualquer caminho de erro também termine aqui. Regra dura do projeto:
  * nenhum dado do jogador N pode aparecer no primeiro frame do jogador N+1.
  */
 function voltarParaAtracao() {
   cancelarAgendamentos()
   cronometro.cancelar()
-  ponteiroAtivo = null
   document.body.dataset.vitoria = 'false'
   estado.reiniciar()
+  ligarSondagem()
 }
 
 /** Começa uma partida nova. */
 function comecarPartida() {
   audio.destravar() // primeiro gesto do usuário: é aqui que o som pode ligar
   cancelarAgendamentos()
-  estado.definir({ tentativas: [], identidade: null, resultado: null, posicao: null })
+  desligarSondagem()
+  estado.definir({
+    tentativas: [],
+    identidade: null,
+    resultado: null,
+    posicao: null,
+    sabor: null,
+    assinatura: assinaturaAleatoria(),
+  })
   prepararTentativa()
 }
 
@@ -90,9 +121,13 @@ function comecarPartida() {
  */
 function prepararTentativa() {
   cancelarAgendamentos()
-  ponteiroAtivo = null
 
-  estado.definir({ tela: TELAS.PREPARO, alvoMs: sortearAlvo(), contagem: CONFIG.CONTAGEM_REGRESSIVA_S })
+  const rodada = estado.obter().tentativas.length
+  estado.definir({
+    tela: TELAS.PREPARO,
+    alvoMs: sortearAlvo(rodada),
+    contagem: CONFIG.CONTAGEM_REGRESSIVA_S,
+  })
 
   // 3 · 2 · 1 com um bipe cada, e a buzina no zero.
   for (let restante = CONFIG.CONTAGEM_REGRESSIVA_S; restante > 0; restante -= 1) {
@@ -126,12 +161,10 @@ function largar() {
  */
 function encerrarTentativa(tempoMs) {
   cancelarAgendamentos()
-  ponteiroAtivo = null
 
   const { alvoMs, tentativas } = estado.obter()
   const tentativa = registrarTentativa(tempoMs, alvoMs)
   const todas = [...tentativas, tentativa]
-  const faixa = faixaDaTentativa(tentativa)
 
   if (tentativa.cravada) audio.cravada()
 
@@ -139,36 +172,88 @@ function encerrarTentativa(tempoMs) {
     tela: TELAS.FEEDBACK,
     tentativas: todas,
     ultima: tentativa,
-    mensagem: mensagemPara(faixa, tentativa.parou),
+    mensagem: mensagemPara(faixaDaTentativa(tentativa), tentativa.parou),
   })
 
   agendar(
-    () => (partidaAcabou(todas) ? finalizarPartida(todas) : prepararTentativa()),
+    () => (partidaAcabou(todas) ? mostrarResultado(todas) : prepararTentativa()),
     CONFIG.FEEDBACK_MS
   )
 }
 
 /**
- * Fecha a partida: avalia, sorteia a identidade, grava no placar e mostra o fim.
+ * Fecha a partida e mostra o veredito.
+ *
+ * O veredito vem ANTES da escolha do sabor de propósito: saber que ganhou uma
+ * lata muda o sentido de escolher qual lata é.
+ *
  * @param {import('./core/regras.js').Tentativa[]} tentativas
  */
-function finalizarPartida(tentativas) {
+function mostrarResultado(tentativas) {
   cancelarAgendamentos()
 
   const resultado = avaliarPartida(tentativas)
-  const identidade = proximaIdentidade(ranking.totalDeJogadas())
-  const posicao = ranking.registrar({
-    rotulo: identidade.rotulo,
-    erroTotalMs: resultado.erroTotalMs,
-    melhorErroMs: resultado.melhorErroMs,
-    venceu: resultado.venceu,
-    numero: identidade.numero,
-  })
-
-  estado.definir({ tela: TELAS.FINAL, resultado, identidade, posicao })
+  estado.definir({ tela: TELAS.RESULTADO, resultado })
+  // Só quem ganhou vai ver o carrossel — não custa 540 KB de rede a quem vai
+  // voltar direto para a atração.
+  if (resultado.venceu) precarregarCarrossel()
 
   if (resultado.venceu) audio.campeao()
   else audio.derrota()
+
+  // Quem não fechou o orçamento não escolhe lata e não entra no placar: o
+  // placar é dos vencedores do dia. A tela de derrota devolve para a atração,
+  // que é o convite para jogar de novo.
+  agendar(resultado.venceu ? irParaSabor : voltarParaAtracao, CONFIG.RESULTADO_MS)
+}
+
+/** O que o botão da tela de resultado faz depende do veredito. */
+function seguirDoResultado() {
+  if (estado.obter().resultado?.venceu) irParaSabor()
+  else voltarParaAtracao()
+}
+
+/**
+ * Abre o carrossel de sabores.
+ *
+ * O sabor centralizado começa sorteado: além de variar o placar, é ele que
+ * vale se o jogador largar o tablet e a tela avançar sozinha.
+ */
+function irParaSabor() {
+  cancelarAgendamentos()
+
+  const inicial = saborInicial()
+  carrossel.reiniciar(SABORES.indexOf(inicial))
+  estado.definir({ tela: TELAS.SABOR, sabor: inicial })
+
+  agendar(confirmarSabor, CONFIG.SABOR_MS)
+}
+
+/**
+ * Registra a partida com o sabor escolhido e mostra o placar.
+ *
+ * O número de chegada é atribuído por quem grava — no modo remoto, pelo
+ * servidor — para que dois aparelhos jogando junto não gerem dois "TROPICAL 7".
+ */
+async function confirmarSabor() {
+  cancelarAgendamentos()
+
+  const { resultado, sabor } = estado.obter()
+  const escolhido = sabor ?? saborInicial()
+
+  const { numero, posicao, total } = await ranking.registrar({
+    sabor: escolhido.id,
+    nome: escolhido.nome,
+    erroTotalMs: resultado.erroTotalMs,
+    melhorErroMs: resultado.melhorErroMs,
+    venceu: resultado.venceu,
+  })
+
+  estado.definir({
+    tela: TELAS.PLACAR,
+    identidade: identidadePara(escolhido.id, numero),
+    posicao: { posicao, total },
+  })
 
   // O totem se recicla sozinho: ninguém precisa reiniciar entre um visitante
   // e outro, que é o requisito real de um estande sem operador dedicado.
@@ -198,29 +283,52 @@ function aoParar(evento) {
   if (!evento.isPrimary) return
   if (!cronometro.estaAtivo()) return
 
-  ponteiroAtivo = evento.pointerId
-  const tempo = cronometro.parar(agora)
   audio.toque()
-  encerrarTentativa(tempo)
+  encerrarTentativa(cronometro.parar(agora))
 }
 
 // ═══ Ligações com o DOM ════════════════════════════════════════════════════
 
 const botaoComecar = document.getElementById('btn-comecar')
 const botaoParar = document.getElementById('btn-parar')
+const botaoEscolherSabor = document.getElementById('btn-escolher-sabor')
+const botaoConfirmarSabor = document.getElementById('btn-confirmar-sabor')
 const botaoProximo = document.getElementById('btn-proximo')
 const botaoOperador = document.getElementById('btn-operador')
 
+const setaAnterior = document.getElementById('sabor-anterior')
+const setaProxima = document.getElementById('sabor-proximo')
+
+const carrossel = criarCarrossel(
+  {
+    trilho: document.getElementById('carrossel-trilho'),
+    pontos: document.getElementById('carrossel-pontos'),
+    anterior: setaAnterior,
+    proximo: setaProxima,
+  },
+  (sabor) => {
+    // Mexer no carrossel é sinal de vida: adia o auto-avanço para o jogador
+    // ter tempo de ver todas as latas.
+    if (estado.obter().tela === TELAS.SABOR) {
+      cancelarAgendamentos()
+      agendar(confirmarSabor, CONFIG.SABOR_MS)
+    }
+    estado.definir({ sabor })
+  }
+)
+
 botaoComecar.addEventListener('pointerdown', comecarPartida)
+botaoParar.addEventListener('pointerdown', aoParar)
+botaoEscolherSabor.addEventListener('pointerdown', seguirDoResultado)
+botaoConfirmarSabor.addEventListener('pointerdown', confirmarSabor)
 botaoProximo.addEventListener('pointerdown', voltarParaAtracao)
 
-botaoParar.addEventListener('pointerdown', aoParar)
+setaAnterior.addEventListener('pointerdown', () => carrossel.anterior())
+setaProxima.addEventListener('pointerdown', () => carrossel.proximo())
 
 // O iOS dispara `pointercancel` quando o sistema assume o ponteiro (gesto de
 // borda, notificação). Sem tratar, a rodada fica em estado zumbi.
-botaoParar.addEventListener('pointercancel', () => {
-  if (cronometro.estaAtivo()) ponteiroAtivo = null
-})
+botaoParar.addEventListener('pointercancel', () => cronometro.cancelar())
 
 /**
  * Operação por teclado, para o avaliador que abrir o link num notebook.
@@ -228,17 +336,24 @@ botaoParar.addEventListener('pointercancel', () => {
  */
 document.addEventListener('keydown', (evento) => {
   if (evento.repeat) return // segurar a tecla não dispara em rajada
+  const tela = estado.obter().tela
+
+  if (tela === TELAS.SABOR) {
+    if (evento.key === 'ArrowLeft') return carrossel.anterior()
+    if (evento.key === 'ArrowRight') return carrossel.proximo()
+  }
+
   if (evento.key !== ' ' && evento.key !== 'Enter') return
   evento.preventDefault()
 
-  const tela = estado.obter().tela
   if (tela === TELAS.ATRACAO) comecarPartida()
   else if (tela === TELAS.RODADA && cronometro.estaAtivo()) {
     const agora = performance.now()
-    const tempo = cronometro.parar(agora)
     audio.toque()
-    encerrarTentativa(tempo)
-  } else if (tela === TELAS.FINAL) voltarParaAtracao()
+    encerrarTentativa(cronometro.parar(agora))
+  } else if (tela === TELAS.RESULTADO) seguirDoResultado()
+  else if (tela === TELAS.SABOR) confirmarSabor()
+  else if (tela === TELAS.PLACAR) voltarParaAtracao()
 })
 
 // Sair da aba com uma rodada em andamento produziria um tempo sem sentido:
@@ -256,12 +371,12 @@ document.addEventListener('gesturestart', (evento) => evento.preventDefault())
  * para quem está jogando.
  */
 let toquesOperador = []
-botaoOperador.addEventListener('pointerdown', () => {
+botaoOperador.addEventListener('pointerdown', async () => {
   const agora = performance.now()
   toquesOperador = [...toquesOperador, agora].filter((t) => agora - t < 1500)
   if (toquesOperador.length < 3) return
   toquesOperador = []
-  ranking.limpar()
+  await ranking.limpar()
   voltarParaAtracao()
 })
 
@@ -279,16 +394,15 @@ window.addEventListener('unhandledrejection', recuperarDeErro)
 // ═══ Inicialização ═════════════════════════════════════════════════════════
 
 /**
- * Decodifica as imagens antes do primeiro toque.
+ * Decodifica um conjunto de imagens fora do caminho crítico.
  *
- * Sem isso, a primeira exibição de uma lata decodifica durante a partida — e
- * decodificação roda na mesma thread que mede o tempo.
+ * Decodificação roda na mesma thread que mede o tempo, então nenhuma imagem
+ * pode decodificar durante uma rodada.
+ *
+ * @param {Iterable<Element>} imagens
  */
-async function precarregarImagens() {
-  const fontes = [...document.images]
-    .map((img) => img.currentSrc || img.src)
-    .filter(Boolean)
-
+async function precarregar(imagens) {
+  const fontes = [...imagens].map((img) => img.currentSrc || img.src).filter(Boolean)
   await Promise.allSettled(
     fontes.map((src) => {
       const img = new Image()
@@ -298,6 +412,32 @@ async function precarregarImagens() {
   )
 }
 
+/**
+ * As 12 latas do carrossel pesam mais que o resto da página somada. Elas são
+ * carregadas só quando a partida já acabou e o jogador está lendo o resultado
+ * — nesse ponto, alguns centenas de milissegundos de rede são invisíveis, e a
+ * tela de atração continua abrindo leve.
+ */
+let carrosselPrecarregado = false
+function precarregarCarrossel() {
+  if (carrosselPrecarregado) return
+  carrosselPrecarregado = true
+  precarregar(document.querySelectorAll('.carrossel__item img'))
+}
+
 voltarParaAtracao()
 desenhar()
-precarregarImagens()
+// Só o que a primeira tela mostra entra no caminho crítico.
+precarregar(document.querySelectorAll('.tela--atracao img'))
+
+// O placar é carregado depois do primeiro frame: a tela de atração não pode
+// esperar rede para aparecer.
+ranking
+  .iniciar()
+  .then((modo) => {
+    console.info(`[placar] modo ${modo}`)
+    desenhar()
+  })
+  .catch(() => {
+    /* iniciar já degrada para local; nada a fazer aqui */
+  })

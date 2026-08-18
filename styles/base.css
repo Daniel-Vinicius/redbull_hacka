@@ -96,8 +96,14 @@ button {
 :focus:not(:focus-visible) { outline: none; }
 
 /* ---- Palco ---------------------------------------------------------------
-   As cinco telas ocupam a mesma área; só a que casa com body[data-tela]
-   é exibida. Trocar de tela é trocar um atributo — nunca reconstruir HTML. */
+   As telas ocupam a mesma área; só a marcada com `data-ativa` é exibida, e
+   quem marca é `ui/render.js`. Trocar de tela é trocar um atributo — nunca
+   reconstruir HTML.
+
+   A versão anterior enumerava os pares `body[data-tela='x'] .tela[data-para='x']`
+   em CSS. Enumeração é frágil: ao acrescentar telas novas, esquecer uma linha
+   aqui faz a tela existir no DOM e nunca aparecer, sem erro nenhum no console.
+   Foi exatamente o que aconteceu. Agora a lista de telas vive num lugar só. */
 
 #app {
   position: relative;
@@ -110,11 +116,7 @@ button {
 }
 
 .tela { display: none; }
-body[data-tela='atracao']  .tela[data-para='atracao'],
-body[data-tela='preparo']  .tela[data-para='preparo'],
-body[data-tela='rodada']   .tela[data-para='rodada'],
-body[data-tela='feedback'] .tela[data-para='feedback'],
-body[data-tela='final']    .tela[data-para='final'] {
+.tela[data-ativa='true'] {
   display: grid;
   width: 100%;
   height: 100%;

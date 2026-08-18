@@ -21,7 +21,9 @@ export const TELAS = Object.freeze({
   PREPARO: 'preparo',
   RODADA: 'rodada',
   FEEDBACK: 'feedback',
-  FINAL: 'final',
+  RESULTADO: 'resultado',
+  SABOR: 'sabor',
+  PLACAR: 'placar',
 })
 
 /**
@@ -35,6 +37,8 @@ export const TELAS = Object.freeze({
  * @property {import('./jogadores.js').Identidade|null} identidade
  * @property {import('./regras.js').Resultado|null} resultado
  * @property {{posicao: number, total: number}|null} posicao colocação no placar
+ * @property {import('./sabores.gerado.js').Sabor|null} sabor sabor centralizado no carrossel
+ * @property {string} assinatura frase de rodapé sorteada para esta partida
  */
 
 /** Estado inicial — também é o estado para o qual `reiniciar()` volta. */
@@ -48,6 +52,8 @@ const INICIAL = Object.freeze({
   identidade: null,
   resultado: null,
   posicao: null,
+  sabor: null,
+  assinatura: '',
 })
 
 /** @type {Estado} */

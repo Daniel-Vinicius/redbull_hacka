@@ -1,105 +1,113 @@
 /**
- * Placar do dia — persistência local
- * ===================================
+ * Placar do dia — fachada
+ * ========================
  *
- * Fica inteiramente no `localStorage` do aparelho. Nada é enviado para lugar
- * nenhum: sem servidor, sem rede em tempo de execução, sem serviço externo
- * capaz de cair no meio da feira — que é o que a premissa de "funcionamento
- * estável" do briefing exige.
+ * Escolhe entre os dois armazenamentos e mantém um CACHE EM MEMÓRIA do placar.
  *
- * Regra de robustez: o placar nunca pode derrubar o jogo. Toda leitura e toda
- * escrita passa por try/catch, e existe um espelho em memória para o caso de o
- * Safari estar em navegação privada ou com a cota estourada.
+ * O cache existe por um motivo concreto: `ui/render.js` desenha o placar a cada
+ * mudança de estado, de forma síncrona. Se `topo()` devolvesse uma Promise, a
+ * renderização inteira teria que virar assíncrona — e uma tela que espera rede
+ * para desenhar é exatamente o que a premissa de estabilidade do briefing
+ * proíbe. Então a leitura é sempre local e instantânea, e a rede acontece só
+ * nas bordas: na abertura, ao gravar, e no polling da tela de atração.
+ *
+ * Qualquer falha do armazenamento remoto degrada para o local, em silêncio.
  */
 
 import { CONFIG } from '../core/config.js'
+import * as localStorageAdapter from './armazenamento-local.js'
+import * as remotoAdapter from './armazenamento-remoto.js'
+import { ordenar, posicaoDe } from './registro.js'
 
-/** @type {Registro[]} espelho em memória, usado se o localStorage falhar */
-let memoria = []
+export { ordenar }
 
-/** @type {boolean} vira true assim que uma operação de storage falha */
-let somenteMemoria = false
+/** Armazenamento em uso. Começa local e só troca se a sonda achar a API. */
+let armazenamento = localStorageAdapter
 
-/**
- * @typedef {object} Registro
- * @property {string} rotulo identidade exibida, ex.: "TROPICAL 7"
- * @property {number} erroTotalMs chave de ordenação: menor é melhor
- * @property {number} melhorErroMs menor erro entre as tentativas
- * @property {boolean} venceu ganhou uma lata?
- * @property {number} numero ordem de chegada no dia
- */
+/** @type {import('./registro.js').Registro[]} placar conhecido */
+let cache = []
 
 /**
- * Lê o placar bruto do storage.
- * @returns {Registro[]}
+ * Decide o armazenamento e carrega o placar.
+ * Deve ser chamado uma vez, na abertura do jogo.
+ * @returns {Promise<string>} nome do modo escolhido: 'local' ou 'remoto'
  */
-function ler() {
-  if (somenteMemoria) return memoria
+export async function iniciar() {
+  if (CONFIG.RANKING_REMOTO !== 'nunca') {
+    const forcado = CONFIG.RANKING_REMOTO === 'sempre'
+    if (forcado || (await remotoAdapter.disponivel())) armazenamento = remotoAdapter
+  }
+  await sincronizar()
+  return armazenamento.nome
+}
+
+/** @returns {string} 'local' ou 'remoto' */
+export function modo() {
+  return armazenamento.nome
+}
+
+/**
+ * Rebusca o placar no armazenamento atual.
+ *
+ * Chamado no polling da tela de atração, para que as partidas de outros
+ * aparelhos apareçam sozinhas durante um teste em rede. Nunca é chamado
+ * durante uma rodada cronometrada.
+ *
+ * @returns {Promise<boolean>} true se o placar mudou
+ */
+export async function sincronizar() {
   try {
-    const cru = localStorage.getItem(CONFIG.RANKING_CHAVE)
-    if (!cru) return []
-    const dados = JSON.parse(cru)
-    // Formato inesperado (versão antiga, storage editado à mão) recomeça vazio
-    // em vez de quebrar a tela — o placar não vale um erro fatal.
-    return Array.isArray(dados) ? dados : []
+    const registros = await armazenamento.ler()
+    const mudou = registros.length !== cache.length
+    cache = registros
+    return mudou
   } catch {
-    somenteMemoria = true
-    return memoria
+    // Servidor caiu no meio do evento: segue com o que já está em memória.
+    return false
   }
 }
 
-/**
- * Grava o placar, caindo para memória se o storage recusar.
- * @param {Registro[]} registros
- */
-function gravar(registros) {
-  memoria = registros
-  if (somenteMemoria) return
-  try {
-    localStorage.setItem(CONFIG.RANKING_CHAVE, JSON.stringify(registros))
-  } catch {
-    somenteMemoria = true
-  }
-}
-
-/**
- * Ordena por erro total crescente; empate resolve por quem chegou primeiro.
- * @param {Registro[]} registros
- * @returns {Registro[]} novo array ordenado
- */
-export function ordenar(registros) {
-  return [...registros].sort(
-    (a, b) => a.erroTotalMs - b.erroTotalMs || a.numero - b.numero
-  )
-}
-
-/** @returns {Registro[]} placar completo, ordenado */
+/** @returns {import('./registro.js').Registro[]} placar completo, ordenado */
 export function placar() {
-  return ordenar(ler())
+  return ordenar(cache)
 }
 
-/** @returns {number} quantas partidas já foram jogadas hoje */
-export function totalDeJogadas() {
-  return ler().length
-}
-
-/** @returns {Registro[]} as primeiras posições, conforme CONFIG.RANKING_VISIVEL */
+/** @returns {import('./registro.js').Registro[]} as primeiras posições */
 export function topo() {
   return placar().slice(0, CONFIG.RANKING_VISIVEL)
 }
 
 /**
- * Registra uma partida e devolve a posição do jogador.
- * @param {Registro} registro
- * @returns {{posicao: number, total: number}} posição 1-indexada e total de jogadas
+ * Registra uma partida.
+ *
+ * É assíncrono de propósito: quem grava é que atribui o número de chegada, e
+ * no modo remoto isso vem do servidor. Como a chamada acontece na transição
+ * para a tela de placar, o jogador não percebe a espera.
+ *
+ * @param {object} parcial `{sabor, rotulo, erroTotalMs, melhorErroMs, venceu}`
+ *   sem o número — o rótulo é completado com o número devolvido.
+ * @returns {Promise<{numero: number, posicao: number, total: number}>}
  */
-export function registrar(registro) {
-  const atualizado = [...ler(), registro]
-  gravar(atualizado)
-  const ordenado = ordenar(atualizado)
-  return {
-    posicao: ordenado.findIndex((r) => r.numero === registro.numero) + 1,
-    total: ordenado.length,
+export async function registrar(parcial) {
+  try {
+    const { registro, registros } = await armazenamento.gravar(parcial)
+    cache = registros
+    return {
+      numero: registro.numero,
+      posicao: posicaoDe(cache, registro.numero),
+      total: cache.length,
+    }
+  } catch {
+    // Remoto falhou no momento de gravar: cai para local para não perder a
+    // partida do jogador que está com o tablet na mão.
+    armazenamento = localStorageAdapter
+    const { registro, registros } = await armazenamento.gravar(parcial)
+    cache = registros
+    return {
+      numero: registro.numero,
+      posicao: posicaoDe(cache, registro.numero),
+      total: cache.length,
+    }
   }
 }
 
@@ -107,12 +115,11 @@ export function registrar(registro) {
  * Apaga o placar. Usado pelo atalho de operador antes de abrir a feira e antes
  * de mandar o link para avaliação — ninguém deve encontrar as jogadas de teste.
  */
-export function limpar() {
-  memoria = []
+export async function limpar() {
+  cache = []
   try {
-    localStorage.removeItem(CONFIG.RANKING_CHAVE)
-    somenteMemoria = false
+    await armazenamento.limpar()
   } catch {
-    somenteMemoria = true
+    /* placar de teste sobrevivendo não justifica quebrar a tela */
   }
 }

@@ -1,146 +1,215 @@
 <!doctype html>
 <html lang="pt-BR">
+
 <head>
-<meta charset="utf-8">
-<!-- viewport-fit=cover: usa a tela inteira do iPad, inclusive sob as bordas arredondadas -->
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<!-- Instalado na Tela de Início, roda sem a barra do Safari (modo quiosque) -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Cronômetro Invisível">
-<meta name="theme-color" content="#0C1030">
-<meta name="description" content="Cronômetro Invisível — microativação digital Red Bull. Pare o relógio no tempo certo, sem ver o relógio.">
-<title>Cronômetro Invisível — Red Bull</title>
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover: usa a tela inteira do iPad, inclusive sob as bordas arredondadas -->
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <!-- Instalado na Tela de Início, roda sem a barra do Safari (modo quiosque) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cronômetro Invisível">
+  <meta name="theme-color" content="#0C1030">
+  <meta name="description"
+    content="Cronômetro Invisível — microativação digital Red Bull. Pare o relógio no tempo certo, sem ver o relógio.">
+  <title>Cronômetro Invisível — Red Bull</title>
 
-<link rel="manifest" href="app.webmanifest">
-<link rel="stylesheet" href="styles/tokens.css">
-<link rel="stylesheet" href="styles/base.css">
-<link rel="stylesheet" href="styles/telas.css">
+  <!-- Favicon e ícone de Tela de Início, gerados da bandeira quadriculada por
+       tools/optimize-assets.mjs. O de 32 px é recortado no desenho, senão o
+       selo redondo come um terço da largura e some na aba; o de 180 px mantém
+       o selo e já vem achatado no navy, porque o iOS compõe qualquer
+       transparência contra preto. -->
+  <link rel="icon" type="image/png" sizes="32x32" href="public/media/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="public/media/img/favicon-192.png">
+  <link rel="apple-touch-icon" href="public/media/img/favicon-180.png">
 
-<!-- As duas imagens do caminho crítico entram antes do primeiro frame -->
-<link rel="preload" as="image" href="public/media/img/lata-hero-fechada.webp">
-<link rel="preload" as="font" type="font/woff2" href="public/media/fonts/futura-condbold.woff2" crossorigin>
+  <link rel="manifest" href="app.webmanifest">
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/telas.css">
+
+  <!-- Caminho crítico da primeira tela: entram antes do primeiro frame -->
+  <link rel="preload" as="image" href="public/media/img/lata-hero-fechada.webp">
+  <link rel="preload" as="font" type="font/woff2" href="public/media/fonts/futura-condbold.woff2" crossorigin>
 </head>
 
 <body data-tela="atracao">
 
-<main id="app" aria-live="polite">
+  <main id="app" aria-live="polite">
 
-  <!-- ══ ATRAÇÃO ══════════════════════════════════════════════════════════
+    <!-- ══ ATRAÇÃO ══════════════════════════════════════════════════════════
        Primeira e única tela que um passante vê parado. Precisa explicar o
-       jogo sozinha: título, uma linha de regra e um alvo de toque óbvio. -->
-  <section class="tela tela--atracao" data-para="atracao">
-    <img class="atracao__lata" src="public/media/img/lata-hero-fechada.webp" alt="" width="440" height="1100">
+       jogo sozinha: título, uma linha de regra e um alvo de toque óbvio.
+       O placar entra como terceira coluna, deliberadamente secundário — o
+       botão continua sendo o único alvo de toque evidente. -->
+    <section class="tela tela--atracao" data-para="atracao">
+      <img class="atracao__lata" src="public/media/img/lata-hero-fechada.webp" alt="" width="440" height="1100">
 
-    <div class="atracao__texto">
-      <p class="kicker">Red Bull · Microativação</p>
-      <h1 class="titulo">
-        <span class="titulo__l1">CRONÔMETRO</span>
-        <span class="titulo__l2">INVISÍVEL</span>
-      </h1>
-      <p class="subtitulo">
-        Sorteamos um tempo. Você para o cronômetro nele.<br>
-        <strong>Só que o cronômetro não aparece.</strong>
-      </p>
+      <div class="atracao__texto">
+        <p class="kicker">Red Bull · Microativação</p>
+        <h1 class="titulo">
+          <span class="titulo__l1">CRONÔMETRO</span>
+          <span class="titulo__l2">INVISÍVEL</span>
+        </h1>
+        <p class="subtitulo">
+          Sorteamos um tempo. Você para o cronômetro nele.<br>
+          <strong>Só que o cronômetro não aparece.</strong>
+        </p>
 
-      <button class="botao-gigante botao-gigante--inicio" type="button" id="btn-comecar">
-        <span class="botao-gigante__linha1">TOCAR</span>
-        <span class="botao-gigante__linha2">PARA COMEÇAR</span>
-      </button>
+        <button class="botao-gigante botao-gigante--inicio" type="button" id="btn-comecar">
+          <span class="botao-gigante__linha1">TOCAR</span>
+          <span class="botao-gigante__linha2">PARA COMEÇAR</span>
+        </button>
 
-      <p class="atracao__premio">
-        <img src="public/media/img/lata-icone.webp" alt="" width="28" height="28">
-        Acertou? Leva uma Red Bull.
-      </p>
-    </div>
+        <p class="atracao__premio">
+          <img src="public/media/img/lata-icone.webp" alt="" width="28" height="28">
+          Erro total abaixo de 1,50 s leva um Red Bull.
+        </p>
+      </div>
 
-    <footer class="atracao__recorde" id="recorde-dia" hidden></footer>
-  </section>
+      <section class="placar placar--atracao" id="placar-atracao">
+        <h2 class="placar__titulo">
+          <img src="public/media/img/trofeu.webp" alt="" width="26" height="26"> Melhores do dia
+        </h2>
+        <ol class="placar__lista" id="placar-atracao-lista"></ol>
+      </section>
+    </section>
 
 
-  <!-- ══ PREPARO ══════════════════════════════════════════════════════════
+    <!-- ══ PREPARO ══════════════════════════════════════════════════════════
        Mostra o alvo e conta 3 · 2 · 1 · JÁ. O cronômetro larga na buzina. -->
-  <section class="tela tela--preparo" data-para="preparo">
-    <p class="kicker" id="preparo-tentativa">TENTATIVA 1 DE 3</p>
+    <section class="tela tela--preparo" data-para="preparo">
+      <p class="kicker" id="preparo-tentativa">TENTATIVA 1 DE 3</p>
 
-    <div class="alvo">
-      <p class="alvo__rotulo">SEU ALVO</p>
-      <p class="display display--alvo" id="preparo-alvo" aria-label="alvo em segundos"></p>
-      <p class="alvo__unidade">SEGUNDOS</p>
-    </div>
+      <div class="alvo">
+        <p class="alvo__rotulo">SEU ALVO</p>
+        <p class="display display--alvo" id="preparo-alvo" aria-label="alvo em segundos"></p>
+        <p class="alvo__unidade">SEGUNDOS</p>
+      </div>
 
-    <p class="frase-preparo" id="preparo-frase"></p>
+      <p class="frase-preparo" id="preparo-frase"></p>
 
-    <div class="contagem" id="contagem" aria-hidden="true"><span>3</span></div>
-  </section>
+      <div class="contagem" id="contagem" aria-hidden="true"><span>3</span></div>
+    </section>
 
 
-  <!-- ══ RODADA ═══════════════════════════════════════════════════════════
+    <!-- ══ RODADA ═══════════════════════════════════════════════════════════
        Janela cega. Deliberadamente SEM nenhuma animação com ritmo constante:
        qualquer pulso periódico na tela viraria metrônomo e resolveria o jogo
        pelo jogador. Ver docs/DECISOES.md. -->
-  <section class="tela tela--rodada" data-para="rodada">
-    <p class="rodada__alvo">ALVO <strong id="rodada-alvo"></strong> s</p>
+    <section class="tela tela--rodada" data-para="rodada">
+      <p class="rodada__alvo">ALVO <strong id="rodada-alvo"></strong> s</p>
 
-    <button class="botao-gigante botao-gigante--parar" type="button" id="btn-parar">
-      <span class="botao-gigante__linha2">PARAR</span>
-    </button>
+      <button class="botao-gigante botao-gigante--parar" type="button" id="btn-parar">
+        <span class="botao-gigante__linha2">PARAR</span>
+      </button>
 
-    <ol class="pips" id="pips" aria-label="tentativas"></ol>
-  </section>
-
-
-  <!-- ══ FEEDBACK ═════════════════════════════════════════════════════════
-       Resultado de uma tentativa. Segura poucos segundos e segue sozinha. -->
-  <section class="tela tela--feedback" data-para="feedback">
-    <p class="kicker">SEU TEMPO</p>
-    <p class="display display--tempo" id="feedback-tempo"></p>
-    <p class="delta" id="feedback-delta"></p>
-    <p class="mensagem" id="feedback-mensagem"></p>
-    <div class="barra-tempo" id="feedback-barra"><i></i></div>
-  </section>
-
-
-  <!-- ══ FINAL ════════════════════════════════════════════════════════════
-       Fecha a partida e é também a tela de placar. Desenhada como cartaz:
-       é o frame que a pessoa fotografa. -->
-  <section class="tela tela--final" data-para="final">
-    <div class="final__veredito">
-      <img class="final__selo" id="final-selo" src="public/media/img/asas.webp" alt="" width="120" height="120">
-      <h2 class="final__titulo" id="final-titulo"></h2>
-      <p class="final__linha" id="final-linha"></p>
-    </div>
-
-    <ol class="tentativas" id="final-tentativas"></ol>
-
-    <div class="final__jogador">
-      <img class="final__lata" id="final-lata" src="" alt="" width="110" height="275">
-      <div>
-        <p class="final__identidade" id="final-identidade"></p>
-        <p class="final__posicao" id="final-posicao"></p>
-      </div>
-    </div>
-
-    <section class="placar" id="placar" hidden>
-      <h3 class="placar__titulo">
-        <img src="public/media/img/trofeu.webp" alt="" width="26" height="26"> MELHORES DO DIA
-      </h3>
-      <ol class="placar__lista" id="placar-lista"></ol>
+      <ol class="pips" id="pips" aria-label="tentativas"></ol>
     </section>
 
-    <button class="botao-gigante botao-gigante--proximo" type="button" id="btn-proximo">
-      <span class="botao-gigante__linha2">PRÓXIMO JOGADOR</span>
-    </button>
 
-    <p class="assinatura" id="assinatura"></p>
-  </section>
+    <!-- ══ FEEDBACK ═════════════════════════════════════════════════════════
+       Resultado de uma tentativa, mais o orçamento de erro correndo. É o
+       orçamento que ensina a regra sem texto de instrução. -->
+    <section class="tela tela--feedback" data-para="feedback">
+      <p class="kicker">SEU TEMPO</p>
+      <p class="display display--tempo" id="feedback-tempo"></p>
+      <p class="delta" id="feedback-delta"></p>
+      <p class="mensagem" id="feedback-mensagem"></p>
 
-</main>
+      <div class="orcamento" id="feedback-orcamento">
+        <p class="orcamento__rotulo">
+          <span id="orcamento-titulo">ERRO TOTAL</span>
+          <strong id="orcamento-valor"></strong>
+        </p>
+        <div class="orcamento__trilho"><i id="orcamento-barra"></i></div>
+      </div>
 
-<!-- Área de toque secreta para o operador: 3 toques no canto zeram o placar. -->
-<button class="operador" id="btn-operador" type="button" aria-label="Área do operador" tabindex="-1"></button>
+      <div class="barra-tempo" id="feedback-barra"><i></i></div>
+    </section>
 
-<script type="module" src="src/main.js"></script>
+
+    <!-- ══ RESULTADO ════════════════════════════════════════════════════════
+       Fecha a partida: veredito, as três tentativas e o número que decidiu
+       tudo. Desenhada como cartaz — é o frame que a pessoa fotografa. -->
+    <section class="tela tela--resultado" data-para="resultado">
+      <div class="final__veredito">
+        <img class="final__selo" id="final-selo" src="public/media/img/asas.webp" alt="" width="120" height="120">
+        <h2 class="final__titulo" id="final-titulo"></h2>
+        <p class="final__linha" id="final-linha"></p>
+      </div>
+
+      <div class="final__total">
+        <p class="kicker">ERRO TOTAL</p>
+        <p class="display display--total" id="final-total"></p>
+        <p class="final__limite" id="final-limite"></p>
+      </div>
+
+      <ol class="tentativas" id="final-tentativas"></ol>
+
+      <!-- O rótulo muda com o veredito: quem ganhou escolhe a lata, quem não
+           ganhou volta para a atração e joga de novo. Ver ui/render.js. -->
+      <button class="botao-gigante botao-gigante--proximo" type="button" id="btn-escolher-sabor">
+        <span class="botao-gigante__linha2" id="btn-escolher-sabor-rotulo">CONTINUAR</span>
+      </button>
+
+      <p class="assinatura" id="assinatura"></p>
+    </section>
+
+
+    <!-- ══ SABOR ════════════════════════════════════════════════════════════
+       Carrossel no estilo do site da marca. É o jogador que escolhe a lata,
+       e essa escolha vira a identidade dele no placar — sem teclado, sem
+       cadastro, sem nenhum dado pessoal. -->
+    <section class="tela tela--sabor" data-para="sabor">
+      <div class="sabor__faixa" id="sabor-faixa">
+        <p class="kicker" id="sabor-kicker"></p>
+        <h2 class="sabor__titulo" id="sabor-titulo"></h2>
+        <button class="botao-pilula" type="button" id="btn-confirmar-sabor"></button>
+      </div>
+
+      <div class="carrossel">
+        <ul class="carrossel__trilho" id="carrossel-trilho"></ul>
+
+        <div class="carrossel__controles">
+          <button class="carrossel__seta" type="button" id="sabor-anterior" aria-label="Sabor anterior">‹</button>
+          <ol class="carrossel__pontos" id="carrossel-pontos"></ol>
+          <button class="carrossel__seta" type="button" id="sabor-proximo" aria-label="Próximo sabor">›</button>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ══ PLACAR ═══════════════════════════════════════════════════════════
+       Onde o jogador se vê na competição do dia e o totem se recicla. -->
+    <section class="tela tela--placar" data-para="placar">
+      <div class="final__jogador">
+        <img class="final__lata" id="final-lata" src="" alt="" width="110" height="275">
+        <div>
+          <p class="final__identidade" id="final-identidade"></p>
+          <p class="final__posicao" id="final-posicao"></p>
+        </div>
+      </div>
+
+      <section class="placar placar--final" id="placar-final">
+        <h2 class="placar__titulo">
+          <img src="public/media/img/trofeu.webp" alt="" width="26" height="26"> Melhores do dia
+        </h2>
+        <ol class="placar__lista" id="placar-final-lista"></ol>
+      </section>
+
+      <button class="botao-gigante botao-gigante--proximo" type="button" id="btn-proximo">
+        <span class="botao-gigante__linha2">PRÓXIMO JOGADOR</span>
+      </button>
+    </section>
+
+  </main>
+
+  <!-- Área de toque secreta para o operador: 3 toques no canto zeram o placar. -->
+  <button class="operador" id="btn-operador" type="button" aria-label="Área do operador" tabindex="-1"></button>
+
+  <script type="module" src="src/main.js"></script>
 </body>
+
 </html>

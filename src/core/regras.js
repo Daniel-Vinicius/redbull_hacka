@@ -7,23 +7,30 @@
  * torna este arquivo inteiramente testável em `tests/regras.test.mjs`.
  *
  * Vocabulário do domínio:
- *   alvo       tempo que o jogador precisa reproduzir, em ms
- *   tempo      tempo que o jogador de fato marcou, em ms
- *   erro       |tempo - alvo|, em ms — quanto menor, melhor
- *   cravada    tempo que imprime o MESMO número do alvo, com 2 casas decimais
+ *   alvo        tempo que o jogador precisa reproduzir, em ms
+ *   tempo       tempo que o jogador de fato marcou, em ms
+ *   erro        |tempo - alvo|, em ms — quanto menor, melhor
+ *   erro total  soma dos erros das três tentativas: decide o prêmio E o placar
+ *   cravada     tempo que imprime o MESMO número do alvo, com 2 casas decimais.
+ *               Zera o erro da rodada; na PRIMEIRA tentativa, vence a partida.
  */
 
 import { CONFIG } from './config.js'
 
 /**
- * Sorteia um alvo dentro da faixa configurada, alinhado ao passo de 10 ms.
+ * Sorteia o alvo de uma rodada, dentro da faixa daquela rodada e alinhado ao
+ * passo de 10 ms.
+ *
+ * @param {number} rodada índice da rodada, começando em 0
  * @param {() => number} [rng] gerador de aleatório em [0,1). Injetável para teste.
  * @returns {number} alvo em milissegundos
  */
-export function sortearAlvo(rng = Math.random) {
-  const { ALVO_MIN_MS, ALVO_MAX_MS, ALVO_PASSO_MS } = CONFIG
-  const passos = Math.floor((ALVO_MAX_MS - ALVO_MIN_MS) / ALVO_PASSO_MS) + 1
-  return ALVO_MIN_MS + Math.floor(rng() * passos) * ALVO_PASSO_MS
+export function sortearAlvo(rodada, rng = Math.random) {
+  const faixas = CONFIG.FAIXAS_ALVO
+  // Uma rodada além do previsto cai na última faixa em vez de quebrar.
+  const [minimo, maximo] = faixas[Math.min(rodada, faixas.length - 1)]
+  const passos = Math.floor((maximo - minimo) / CONFIG.ALVO_PASSO_MS) + 1
+  return minimo + Math.floor(rng() * passos) * CONFIG.ALVO_PASSO_MS
 }
 
 /**
@@ -71,6 +78,11 @@ export function ehCravada(tempoMs, alvoMs) {
 /**
  * Faixas de desempenho, usadas só para escolher copy e cor.
  *
+ * O corte de 500 ms em `bom` não é arbitrário: é exatamente
+ * `LIMITE_ERRO_TOTAL_MS / TENTATIVAS`, ou seja, a média que o jogador precisa
+ * manter para ganhar. "Bom" quer dizer literalmente "essa tentativa está no
+ * ritmo do orçamento".
+ *
  * A cravada NÃO é uma faixa: ela depende do par (tempo, alvo) e não da
  * magnitude do erro, e vive em `Tentativa.cravada`. Manter as duas coisas
  * separadas evita que uma fronteira de arredondamento faça a tela dizer
@@ -80,7 +92,7 @@ export function ehCravada(tempoMs, alvoMs) {
  */
 export const FAIXAS = Object.freeze([
   { id: 'quase', ateMs: 150 },
-  { id: 'bom', ateMs: CONFIG.TOLERANCIA_CONSISTENCIA_MS },
+  { id: 'bom', ateMs: CONFIG.LIMITE_ERRO_TOTAL_MS / CONFIG.TENTATIVAS },
   { id: 'medio', ateMs: 1_500 },
   { id: 'longe', ateMs: Infinity },
 ])
@@ -115,6 +127,13 @@ export function faixaDaTentativa(tentativa) {
 
 /**
  * Monta o registro de uma tentativa a partir do tempo bruto.
+ *
+ * A cravada zera o erro da rodada, e não é arredondamento por preguiça: o jogo
+ * inteiro é jogado em duas casas decimais — é isso que o alvo mostra, é isso que
+ * o tempo mostra. Se os dois números impressos são o mesmo, cobrar os 4 ms de
+ * diferença que existem só na física do ponto flutuante seria cobrar por uma
+ * precisão que o jogo nunca ofereceu ao jogador.
+ *
  * @param {number|null} tempoMs tempo marcado, ou null se o jogador não parou
  * @param {number} alvoMs
  * @returns {Tentativa}
@@ -122,13 +141,39 @@ export function faixaDaTentativa(tentativa) {
 export function registrarTentativa(tempoMs, alvoMs) {
   const parou = tempoMs !== null
   const tempo = parou ? tempoMs : alvoMs + CONFIG.LIMITE_EXTRA_MS
+  const cravada = parou && ehCravada(tempo, alvoMs)
   return {
     tempoMs: tempo,
     alvoMs,
-    erroMs: calcularErro(tempo, alvoMs),
+    erroMs: cravada ? 0 : calcularErro(tempo, alvoMs),
     parou,
-    cravada: parou && ehCravada(tempo, alvoMs),
+    cravada,
   }
+}
+
+/**
+ * Diferença com sinal de uma tentativa, já respeitando a cravada.
+ *
+ * Existe porque `calcularDelta` trabalha com o tempo bruto: numa cravada ele
+ * devolveria −2 ms, e a tela imprimiria "−0,00" — um sinal de menos na frente
+ * de um zero, que lê como defeito. Se o jogo considera a rodada zerada, o
+ * número mostrado tem que ser zero.
+ *
+ * @param {Tentativa} tentativa
+ * @returns {number} delta em milissegundos
+ */
+export function deltaDaTentativa(tentativa) {
+  return tentativa.cravada ? 0 : calcularDelta(tentativa.tempoMs, tentativa.alvoMs)
+}
+
+/**
+ * Soma dos erros das tentativas. É a chave de ordenação do placar e o número
+ * que decide o prêmio — por isso vive numa função só, usada pelas duas coisas.
+ * @param {Tentativa[]} tentativas
+ * @returns {number} erro total em milissegundos
+ */
+export function erroTotalDe(tentativas) {
+  return tentativas.reduce((soma, tentativa) => soma + tentativa.erroMs, 0)
 }
 
 /**
@@ -141,36 +186,54 @@ export function registrarTentativa(tempoMs, alvoMs) {
  */
 
 /**
+ * A partida foi vencida na primeira tentativa, no centésimo?
+ *
+ * É a única cravada que vale a lata sozinha. Nas rodadas seguintes ela continua
+ * valendo muito — zera o erro da rodada, ver `registrarTentativa` — mas não
+ * encerra a partida.
+ *
+ * @param {Tentativa[]} tentativas
+ * @returns {boolean}
+ */
+export function cravouDePrimeira(tentativas) {
+  return CONFIG.CRAVADA_VENCE_DE_PRIMEIRA && Boolean(tentativas[0]?.cravada)
+}
+
+/**
  * Avalia a partida inteira.
  *
  * Duas formas de ganhar uma lata:
- *   1. CRAVADA — bater o alvo com 2 casas decimais em qualquer tentativa.
- *      Encerra a partida na hora (ver CONFIG.CRAVADA_ENCERRA_PARTIDA).
- *   2. CONSISTÊNCIA — fechar as 3 tentativas dentro de ±0,5 s do alvo.
+ *   1. CRAVADA DE PRIMEIRA — bater o alvo com 2 casas decimais logo na primeira
+ *      tentativa. Encerra a partida na hora.
+ *   2. ERRO TOTAL — fechar as três tentativas somando menos que
+ *      CONFIG.LIMITE_ERRO_TOTAL_MS de erro.
  *
- * Quando a cravada encerra a partida antes da 3ª tentativa, as tentativas não
- * jogadas contam como erro zero: quem cravou já é, por definição, o melhor
- * resultado possível, e isso mantém `erroTotalMs` comparável no ranking.
+ * Não há caso especial no erro total: quem cravou de primeira soma exatamente
+ * zero, porque a cravada zera o erro da rodada. Uma regra a menos para o placar
+ * conhecer, e o líder continua sendo quem tem o menor número.
  *
  * @param {Tentativa[]} tentativas
  * @returns {Resultado}
  */
 export function avaliarPartida(tentativas) {
-  const cravou = tentativas.some((t) => t.cravada)
+  const cravou = cravouDePrimeira(tentativas)
   const completa = cravou || tentativas.length === CONFIG.TENTATIVAS
+  const erroTotalMs = erroTotalDe(tentativas)
 
-  const consistente =
+  // Quem abandonou uma rodada não ganha por erro total: o tempo daquela
+  // tentativa é uma penalidade sintética, não uma medição do jogador.
+  const dentroDoLimite =
     tentativas.length === CONFIG.TENTATIVAS &&
-    tentativas.every((t) => t.parou && t.erroMs <= CONFIG.TOLERANCIA_CONSISTENCIA_MS)
-
-  const erroTotalMs = tentativas.reduce((soma, t) => soma + t.erroMs, 0)
-  const melhorErroMs = tentativas.length ? Math.min(...tentativas.map((t) => t.erroMs)) : Infinity
+    tentativas.every((tentativa) => tentativa.parou) &&
+    erroTotalMs <= CONFIG.LIMITE_ERRO_TOTAL_MS
 
   return {
-    venceu: cravou || consistente,
-    motivo: cravou ? 'cravada' : consistente ? 'consistencia' : null,
-    erroTotalMs: cravou ? 0 : erroTotalMs,
-    melhorErroMs,
+    venceu: cravou || dentroDoLimite,
+    motivo: cravou ? 'cravada' : dentroDoLimite ? 'consistencia' : null,
+    erroTotalMs,
+    melhorErroMs: tentativas.length
+      ? Math.min(...tentativas.map((tentativa) => tentativa.erroMs))
+      : Infinity,
     completa,
   }
 }
@@ -182,9 +245,9 @@ export function avaliarPartida(tentativas) {
  */
 export function partidaAcabou(tentativas) {
   if (tentativas.length >= CONFIG.TENTATIVAS) return true
-  if (!CONFIG.CRAVADA_ENCERRA_PARTIDA) return false
-  const ultima = tentativas[tentativas.length - 1]
-  return Boolean(ultima?.cravada)
+  // Só a cravada de primeira encerra: cravar na 2ª ou na 3ª zera aquela rodada,
+  // mas o jogador segue jogando as que faltam.
+  return tentativas.length === 1 && cravouDePrimeira(tentativas)
 }
 
 /**

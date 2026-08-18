@@ -9,10 +9,10 @@
 /* ══ ATRAÇÃO ═══════════════════════════════════════════════════════════════ */
 
 .tela--atracao {
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   justify-items: center;
-  gap: var(--gap-g);
+  gap: var(--gap-m);
   /* Brilho radial atrás da lata: gradiente estático, custo zero de repintura */
   background:
     radial-gradient(60% 70% at 22% 50%, rgb(56 68 147 / 55%), transparent 70%),
@@ -21,7 +21,7 @@
 
 .atracao__lata {
   width: auto;
-  height: min(72vh, 620px);
+  height: min(62vh, 520px);
   filter: drop-shadow(0 30px 50px rgb(0 0 0 / 55%));
   animation: flutuar 5.5s ease-in-out infinite;
 }
@@ -33,16 +33,29 @@
 
 .atracao__texto {
   display: grid;
+  /* Uma coluna que NUNCA passa da caixa. A coluna implícita (`auto`) cresce até
+     o max-content do item mais largo, e "CRONÔMETRO" não quebra: a coluna ia a
+     493px dentro de uma caixa de 34ch (340px). Tudo que estava centralizado
+     centralizava na coluna fantasma, 76px à direita do centro real, e a linha
+     do prêmio começava na borda esquerda da caixa. A medida de leitura mora
+     nos próprios textos, não aqui. */
+  grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   gap: var(--gap-m);
-  max-width: 34ch;
+  /* A caixa acompanha o conteúdo — que é o título — em vez de fingir ser mais
+     estreita do que ele. */
+  width: fit-content;
+  max-width: 100%;
 }
 
 .titulo {
   display: grid;
   font-family: var(--fonte-titulo);
   font-size: var(--t-titulo);
-  line-height: 0.86;
+  /* 0,95 e não 0,86: com as linhas mais apertadas o acento do "Í" de INVISÍVEL
+     subia para dentro do "M" de CRONÔMETRO. O empilhamento continua colado,
+     mas as duas palavras não se tocam mais. */
+  line-height: 0.95;
   letter-spacing: 0.01em;
   text-transform: uppercase;
 }
@@ -73,17 +86,18 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+/* Sem teto, esta linha vira o item mais largo e passa a ditar a coluna. */
+.atracao__premio { max-width: 34ch; }
 .atracao__premio img { width: 1.7em; height: auto; }
 
-.atracao__recorde {
-  grid-column: 1 / -1;
-  align-self: end;
-  font-size: var(--t-mini);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--txt-fraco);
+/* Quando a linha quebra em duas — o que só acontece em retrato — o `flex`
+   deixava o raio sozinho na ponta esquerda, longe do texto. Em fluxo normal
+   ele volta a andar junto da primeira palavra. */
+@media (max-aspect-ratio: 1/1), (max-width: 720px) {
+  .atracao__premio { display: block; }
+  .atracao__premio img { display: inline-block; vertical-align: -0.45em; margin-right: 0.3em; }
 }
-.atracao__recorde strong { color: var(--rb-gelo); font-weight: 500; }
+
 
 
 /* ══ PREPARO ═══════════════════════════════════════════════════════════════ */
@@ -223,20 +237,31 @@
 @keyframes escorrer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 
-/* ══ FINAL ═════════════════════════════════════════════════════════════════ */
+/* ══ RESULTADO ═════════════════════════════════════════════════════════════ */
 
-.tela--final {
-  grid-template-columns: 1fr auto;
+.tela--resultado {
+  grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
-    'veredito jogador'
-    'tentativas placar'
-    'acao      placar'
+    'veredito   total'
+    'tentativas total'
+    'acao       acao'
     'assinatura assinatura';
   align-content: center;
   align-items: center;
   gap: var(--gap-m) var(--gap-g);
   background:
     radial-gradient(70% 60% at 50% 0%, rgb(56 68 147 / 45%), transparent 65%);
+}
+
+/* O número que decide tudo: é o mesmo que ordena o placar. */
+.final__total { grid-area: total; display: grid; justify-items: center; gap: var(--gap-xs); }
+.display--total { color: var(--rb-branco); font-size: clamp(3.5rem, 15vmin, 9rem); }
+.display--total[data-venceu='true'] { color: var(--rb-amarelo); }
+.final__limite {
+  font-size: var(--t-mini);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--txt-fraco);
 }
 
 .final__veredito { grid-area: veredito; display: grid; justify-items: start; gap: var(--gap-xs); }
@@ -268,7 +293,6 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
 .tentativas .t-erro { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .final__jogador {
-  grid-area: jogador;
   display: flex;
   align-items: center;
   gap: var(--gap-s);
@@ -286,7 +310,7 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
 }
 .final__posicao { font-size: var(--t-corpo); color: var(--txt-fraco); }
 
-.placar { grid-area: placar; min-width: min(30vw, 260px); }
+.placar { min-width: min(34vw, 300px); }
 .placar__titulo {
   display: flex;
   align-items: center;
@@ -320,7 +344,7 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
   color: var(--txt-fraco);
 }
 
-.tela--final .botao-gigante--proximo { grid-area: acao; justify-self: start; }
+.tela--resultado .botao-gigante--proximo { grid-area: acao; justify-self: start; }
 
 .assinatura {
   grid-area: assinatura;
@@ -341,19 +365,21 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;
     align-content: center;
-    gap: var(--gap-m);
+    gap: var(--gap-s);
+    /* Em pé a tela é alta e estreita: o mesmo botão de 340px que domina a
+       paisagem empurraria a lata e o placar para fora. Tudo encolhe junto. */
+    --botao: clamp(170px, 34vmin, 260px);
   }
-  .atracao__lata { height: min(30vh, 300px); }
-  .atracao__texto { justify-items: center; text-align: center; }
+  .atracao__lata { height: min(20vh, 210px); }
+  .atracao__texto { justify-items: center; text-align: center; gap: var(--gap-s); }
   .atracao__recorde { text-align: center; }
 
-  .tela--final {
+  .tela--resultado {
     grid-template-columns: 1fr;
     grid-template-areas:
       'veredito'
-      'jogador'
+      'total'
       'tentativas'
-      'placar'
       'acao'
       'assinatura';
     justify-items: center;
@@ -361,7 +387,255 @@ body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
     gap: var(--gap-s);
   }
   .final__veredito { justify-items: center; text-align: center; }
-  .tentativas, .placar { width: min(100%, 420px); }
-  .tela--final .botao-gigante--proximo { justify-self: center; }
+  .tentativas, .placar { width: min(100%, 460px); }
+  .tela--resultado .botao-gigante--proximo { justify-self: center; }
   .assinatura { text-align: center; }
+}
+
+
+/* ══ ORÇAMENTO DE ERRO ═════════════════════════════════════════════════════
+   O jogo tem uma regra só — "some menos de 1,50 s de erro nas três" — e o
+   briefing proíbe manual. Esta barra é o que ensina a regra: o jogador vê o
+   número subir a cada tentativa e entende o limite sem ler nada.            */
+
+.orcamento {
+  display: grid;
+  gap: var(--gap-xs);
+  width: min(420px, 70vw);
+  margin-top: var(--gap-s);
+}
+
+.orcamento__rotulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--t-mini);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--txt-fraco);
+}
+.orcamento__rotulo strong {
+  font-family: var(--fonte-texto);
+  font-size: var(--t-medio);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--rb-gelo);
+}
+
+.orcamento__trilho {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--rb-navy);
+  overflow: hidden;
+}
+.orcamento__trilho i {
+  display: block;
+  height: 100%;
+  background: var(--rb-gelo);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform var(--medio) var(--mola);
+}
+.orcamento__trilho[data-estourou='true'] i { background: var(--rb-vermelho); }
+.orcamento__trilho[data-estourou='true'] + .orcamento__rotulo strong,
+.orcamento[data-estourou='true'] strong { color: var(--rb-vermelho); }
+
+
+/* ══ SABOR — carrossel no estilo do site da marca ══════════════════════════
+   Faixa colorida à esquerda com o texto, latas deslizando à direita. A cor
+   vem de `--cor-sabor`, amostrada da própria lata em tools/optimize-assets.  */
+
+.tela--sabor {
+  grid-template-columns: clamp(280px, 38%, 460px) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0;
+  /* Sangra a página inteira, ignorando o padding de segurança de #app: a faixa
+     colorida precisa encostar nas quatro bordas, como no site da marca. */
+  position: absolute;
+  inset: 0;
+}
+
+.sabor__faixa {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: var(--gap-m);
+  padding: var(--gap-g);
+  background: var(--cor-sabor, var(--rb-navy));
+  color: var(--rb-branco);
+  transition: background var(--medio) ease;
+}
+/* Amarelo do Tropical e verde do Melão não sustentam texto branco. */
+.sabor__faixa[data-texto-escuro='true'] { color: #0B0B14; }
+.sabor__faixa[data-texto-escuro='true'] .kicker { color: rgb(11 11 20 / 65%); }
+
+.sabor__titulo {
+  font-family: var(--fonte-titulo);
+  font-size: clamp(2.2rem, 8vmin, 4.5rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.botao-pilula {
+  padding: 0.7em 2.2em;
+  border-radius: 999px;
+  font-family: var(--fonte-titulo);
+  font-size: var(--t-medio);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--rb-branco);
+  background: var(--rb-fundo);
+  box-shadow: 0 8px 0 rgb(0 0 0 / 35%);
+  transition: transform var(--rapido) var(--mola);
+}
+.botao-pilula:active { transform: translate3d(0, 5px, 0); }
+.sabor__faixa[data-texto-escuro='true'] .botao-pilula { color: var(--rb-branco); }
+
+.carrossel {
+  --slot: clamp(130px, 24vmin, 240px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+  background: var(--rb-fundo);
+}
+
+.carrossel__trilho {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  /* O trilho tem a largura do carrossel e transborda para os lados, clipado
+     pelo `overflow: hidden` do pai. `min-width: 0` é o que garante isso: sem
+     ele, a faixa `auto` do grid não pode ficar menor que o conteúdo mínimo do
+     trilho — as 12 latas lado a lado, ~2360px — e o trilho assume ESSA largura.
+     O percentual do padding passaria a resolver contra 2360px em vez da largura
+     visível, empurrando a lata escolhida para fora da tela. Foi exatamente esse
+     o defeito: a lata selecionada sumia atrás da faixa colorida. */
+  min-width: 0;
+  /* Padding de 50% do contêiner centraliza a primeira e a última lata; o
+     deslocamento por índice faz o resto. */
+  padding-inline: calc(50% - var(--slot) / 2);
+  transform: translate3d(calc(var(--indice, 0) * var(--slot) * -1), 0, 0);
+  transition: transform 420ms var(--mola);
+  touch-action: pan-y;
+}
+
+.carrossel__item {
+  flex: 0 0 var(--slot);
+  display: grid;
+  place-items: center;
+}
+.carrossel__item img {
+  height: min(56vh, 460px);
+  width: auto;
+  transform: scale(0.66);
+  opacity: 0.35;
+  transition: transform var(--medio) var(--mola), opacity var(--medio) ease;
+}
+.carrossel__item[data-estado='atual'] img {
+  transform: scale(1);
+  opacity: 1;
+  filter: drop-shadow(0 24px 40px rgb(0 0 0 / 55%));
+}
+
+.carrossel__controles {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-m);
+  padding-bottom: max(var(--gap-m), env(safe-area-inset-bottom));
+}
+
+.carrossel__seta {
+  display: grid;
+  place-content: center;
+  width: clamp(52px, 9vmin, 72px);
+  height: clamp(52px, 9vmin, 72px);
+  border-radius: 50%;
+  font-size: clamp(1.8rem, 4vmin, 2.6rem);
+  line-height: 1;
+  color: var(--rb-branco);
+  background: var(--rb-fundo-alto);
+  transition: transform var(--rapido) var(--mola);
+}
+.carrossel__seta:active { transform: scale(0.92); }
+
+.carrossel__pontos { display: flex; gap: 8px; list-style: none; }
+.carrossel__ponto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rb-navy);
+  transition: transform var(--rapido) var(--mola), background var(--rapido) ease;
+}
+.carrossel__ponto[data-estado='atual'] {
+  background: var(--rb-branco);
+  transform: scale(1.4);
+}
+
+
+/* ══ PLACAR ════════════════════════════════════════════════════════════════ */
+
+.tela--placar {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'jogador placar'
+    'acao    placar';
+  align-content: center;
+  align-items: center;
+  gap: var(--gap-m) var(--gap-g);
+  background: radial-gradient(70% 60% at 50% 0%, rgb(56 68 147 / 45%), transparent 65%);
+}
+.tela--placar .final__jogador { grid-area: jogador; }
+.tela--placar .placar { grid-area: placar; width: min(100%, 560px); justify-self: start; }
+.tela--placar .botao-gigante--proximo { grid-area: acao; justify-self: start; }
+
+.placar--atracao { align-self: center; }
+.placar--atracao .placar__lista li { font-size: var(--t-mini); }
+
+
+/* ══ Retrato para as telas novas ═══════════════════════════════════════════ */
+
+@media (max-aspect-ratio: 1/1), (max-width: 720px) {
+  .tela--sabor {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .sabor__faixa {
+    justify-items: center;
+    text-align: center;
+    gap: var(--gap-s);
+    padding: var(--gap-m);
+  }
+  .carrossel { --slot: clamp(110px, 30vmin, 200px); }
+  .carrossel__item img { height: min(38vh, 340px); }
+
+  .tela--placar {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'jogador'
+      'placar'
+      'acao';
+    justify-items: center;
+    gap: var(--gap-s);
+  }
+  .tela--placar .botao-gigante--proximo { justify-self: center; }
+  /* Em retrato o placar só aparece se houver altura sobrando (o bloco abaixo).
+     Num iPad em pé sobra — e a primeira tela é justamente onde o placar do dia
+     precisa estar. Numa tela baixa ele sai, porque aí a tela é do botão. */
+  .placar--atracao { display: none; }
+}
+
+@media (max-aspect-ratio: 1/1) and (min-height: 1100px) {
+  .placar--atracao { display: block; justify-self: center; }
+  .placar--atracao .placar__titulo { justify-content: center; }
+  .placar--atracao .placar__lista li { font-size: var(--t-corpo); }
+}
+
+/* Seta na ponta do carrossel: sem volta circular, ela não tem para onde ir. */
+.carrossel__seta:disabled {
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
 }

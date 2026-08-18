@@ -14,12 +14,20 @@
 import { CONFIG } from '../core/config.js'
 import { TELAS } from '../core/estado.js'
 import {
-  calcularDelta,
+  deltaDaTentativa,
+  erroTotalDe,
   faixaDaTentativa,
   formatarDelta,
   formatarSegundos,
 } from '../core/regras.js'
-import { ASSINATURA, CONTAGEM, FINAL, FRASE_PREPARO } from '../core/mensagens.js'
+import {
+  BOTAO_RESULTADO,
+  CONTAGEM,
+  FINAL,
+  FRASE_PREPARO,
+  SABOR,
+  textoDaPosicao,
+} from '../core/mensagens.js'
 
 const CAMINHO_IMG = 'public/media/img'
 
@@ -29,7 +37,9 @@ const $ = (id) => document.getElementById(id)
 /** Referências capturadas uma vez só, na carga do módulo. */
 const el = {
   corpo: document.body,
-  recorde: $('recorde-dia'),
+  telas: [...document.querySelectorAll('.tela')],
+
+  placarAtracaoLista: $('placar-atracao-lista'),
 
   preparoTentativa: $('preparo-tentativa'),
   preparoAlvo: $('preparo-alvo'),
@@ -43,17 +53,27 @@ const el = {
   feedbackDelta: $('feedback-delta'),
   feedbackMensagem: $('feedback-mensagem'),
   feedbackBarra: $('feedback-barra'),
+  orcamentoValor: $('orcamento-valor'),
+  orcamentoBarra: $('orcamento-barra'),
 
   finalSelo: $('final-selo'),
   finalTitulo: $('final-titulo'),
   finalLinha: $('final-linha'),
+  finalTotal: $('final-total'),
+  finalLimite: $('final-limite'),
   finalTentativas: $('final-tentativas'),
+  finalBotao: $('btn-escolher-sabor-rotulo'),
+  assinatura: $('assinatura'),
+
+  saborFaixa: $('sabor-faixa'),
+  saborKicker: $('sabor-kicker'),
+  saborTitulo: $('sabor-titulo'),
+  saborBotao: $('btn-confirmar-sabor'),
+
   finalLata: $('final-lata'),
   finalIdentidade: $('final-identidade'),
   finalPosicao: $('final-posicao'),
-  placar: $('placar'),
-  placarLista: $('placar-lista'),
-  assinatura: $('assinatura'),
+  placarFinalLista: $('placar-final-lista'),
 }
 
 /**
@@ -93,23 +113,45 @@ function desenharPips(feitas) {
 }
 
 /**
- * Mostra o melhor resultado do dia na tela de atração.
- * @param {import('../dados/ranking.js').Registro[]} melhores
+ * Monta uma lista de placar. A mesma função serve a tela de atração e a de
+ * placar final — muda só o `<ol>` de destino e qual linha é destacada.
+ *
+ * @param {HTMLElement} lista `<ol>` de destino
+ * @param {import('../dados/registro.js').Registro[]} melhores
+ * @param {number|null} meuNumero número do jogador atual, para destacar
  */
-function renderRecorde(melhores) {
-  const lider = melhores[0]
-  if (!lider) {
-    el.recorde.hidden = true
+function renderPlacar(lista, melhores, meuNumero) {
+  lista.textContent = ''
+
+  // Placar vazio numa tela lê como produto quebrado. Preferimos um estado
+  // próprio a preencher com entradas fantasma — inventar dado é indefensável
+  // se alguém perguntar de onde veio.
+  if (melhores.length === 0) {
+    const vazio = document.createElement('li')
+    vazio.className = 'placar__vazio'
+    vazio.textContent = 'Ninguém jogou ainda. Seja o primeiro.'
+    lista.append(vazio)
     return
   }
-  el.recorde.hidden = false
-  el.recorde.innerHTML = ''
-  el.recorde.append(
-    document.createTextNode('Melhor do dia: '),
-    Object.assign(document.createElement('strong'), {
-      textContent: `${lider.rotulo} · ${formatarSegundos(lider.erroTotalMs)} s de erro`,
-    })
-  )
+
+  melhores.forEach((registro, indice) => {
+    const li = document.createElement('li')
+    li.dataset.eu = String(registro.numero === meuNumero)
+
+    const pos = document.createElement('span')
+    pos.className = 'p-pos'
+    pos.textContent = `${indice + 1}º`
+
+    const nome = document.createElement('span')
+    nome.textContent = registro.rotulo
+
+    const erro = document.createElement('span')
+    erro.className = 'p-erro'
+    erro.textContent = `${formatarSegundos(registro.erroTotalMs)} s`
+
+    li.append(pos, nome, erro)
+    lista.append(li)
+  })
 }
 
 /**
@@ -127,7 +169,24 @@ function renderContagem(restante) {
 }
 
 /**
- * Monta a lista de tentativas da tela final.
+ * Desenha o orçamento de erro: quanto o jogador já gastou do limite.
+ *
+ * É esta barra que ensina a regra sem uma linha de instrução — o briefing
+ * proíbe manual, então a mecânica precisa se explicar por um número que sobe.
+ *
+ * @param {import('../core/regras.js').Tentativa[]} tentativas
+ */
+function renderOrcamento(tentativas) {
+  const gasto = erroTotalDe(tentativas)
+  const limite = CONFIG.LIMITE_ERRO_TOTAL_MS
+
+  el.orcamentoValor.textContent = `${formatarSegundos(gasto)} / ${formatarSegundos(limite)}`
+  el.orcamentoBarra.style.transform = `scaleX(${Math.min(1, gasto / limite)})`
+  el.orcamentoBarra.parentElement.dataset.estourou = String(gasto > limite)
+}
+
+/**
+ * Monta a lista de tentativas da tela de resultado.
  * @param {import('../core/regras.js').Tentativa[]} tentativas
  */
 function renderTentativas(tentativas) {
@@ -147,9 +206,7 @@ function renderTentativas(tentativas) {
 
     const erro = document.createElement('span')
     erro.className = 't-erro'
-    erro.textContent = tentativa.parou
-      ? formatarDelta(calcularDelta(tentativa.tempoMs, tentativa.alvoMs))
-      : '—'
+    erro.textContent = tentativa.parou ? formatarDelta(deltaDaTentativa(tentativa)) : '—'
 
     li.append(num, tempo, erro)
     el.finalTentativas.append(li)
@@ -157,85 +214,82 @@ function renderTentativas(tentativas) {
 }
 
 /**
- * Monta o placar do dia, destacando a linha do jogador atual.
- * @param {import('../dados/ranking.js').Registro[]} melhores
- * @param {number|null} meuNumero número sequencial do jogador atual
- */
-function renderPlacar(melhores, meuNumero) {
-  el.placarLista.textContent = ''
-
-  // Placar quase vazio numa tela lê como produto quebrado. Preferimos um
-  // estado próprio a preencher com entradas fantasma — inventar dado é
-  // indefensável se alguém perguntar de onde veio.
-  if (melhores.length < 2) {
-    el.placar.hidden = false
-    const vazio = document.createElement('li')
-    vazio.className = 'placar__vazio'
-    vazio.textContent = 'Seja o primeiro a cravar.'
-    el.placarLista.append(vazio)
-    return
-  }
-
-  el.placar.hidden = false
-  melhores.forEach((registro, indice) => {
-    const li = document.createElement('li')
-    li.dataset.eu = String(registro.numero === meuNumero)
-
-    const pos = document.createElement('span')
-    pos.className = 'p-pos'
-    pos.textContent = `${indice + 1}º`
-
-    const nome = document.createElement('span')
-    nome.textContent = registro.rotulo
-
-    const erro = document.createElement('span')
-    erro.className = 'p-erro'
-    erro.textContent = `${formatarSegundos(registro.erroTotalMs)} s`
-
-    li.append(pos, nome, erro)
-    el.placarLista.append(li)
-  })
-}
-
-/**
- * Desenha a tela final inteira.
+ * Desenha a tela de veredito.
  * @param {import('../core/estado.js').Estado} estado
- * @param {import('../dados/ranking.js').Registro[]} melhores
  */
-function renderFinal(estado, melhores) {
-  const { resultado, identidade, posicao, tentativas } = estado
+function renderResultado(estado) {
+  const { resultado, tentativas, assinatura } = estado
   const texto = FINAL[resultado.motivo ?? 'derrota']
 
   el.corpo.dataset.vitoria = String(resultado.venceu)
   el.finalSelo.src = `${CAMINHO_IMG}/${resultado.venceu ? 'asas.webp' : 'barreira.webp'}`
   el.finalTitulo.textContent = texto.titulo
   el.finalLinha.textContent = texto.linha
-  el.assinatura.textContent = ASSINATURA
+  el.finalBotao.textContent = BOTAO_RESULTADO[resultado.venceu ? 'vitoria' : 'derrota']
+  el.assinatura.textContent = assinatura
+
+  escreverDisplay(el.finalTotal, formatarSegundos(resultado.erroTotalMs))
+  el.finalTotal.dataset.venceu = String(resultado.venceu)
+  el.finalLimite.textContent = `limite: ${formatarSegundos(CONFIG.LIMITE_ERRO_TOTAL_MS)} s`
 
   renderTentativas(tentativas)
+}
+
+/**
+ * Desenha a tela de escolha do sabor.
+ *
+ * A faixa lateral assume a cor amostrada da lata centralizada, e o texto vira
+ * escuro quando o fundo é claro demais para branco — o amarelo do Tropical e o
+ * verde do Melão não sustentam texto branco.
+ *
+ * @param {import('../core/estado.js').Estado} estado
+ */
+function renderSabor(estado) {
+  const { sabor } = estado
+  if (!sabor) return
+
+  el.saborKicker.textContent = SABOR.kicker
+  el.saborTitulo.textContent = sabor.titulo
+  el.saborBotao.textContent = SABOR.botao
+
+  el.saborFaixa.style.setProperty('--cor-sabor', sabor.cor)
+  el.saborFaixa.dataset.textoEscuro = String(sabor.textoEscuro)
+}
+
+/**
+ * Desenha a tela de placar.
+ * @param {import('../core/estado.js').Estado} estado
+ * @param {import('../dados/registro.js').Registro[]} melhores
+ */
+function renderPlacarFinal(estado, melhores) {
+  const { identidade, posicao } = estado
 
   if (identidade) {
-    el.finalLata.src = `${CAMINHO_IMG}/${identidade.imagem}`
+    el.finalLata.src = `${CAMINHO_IMG}/lata-${identidade.imagem}.webp`
+    el.finalLata.alt = `Red Bull ${identidade.nome}`
     el.finalIdentidade.textContent = identidade.rotulo
   }
-  el.finalPosicao.textContent = posicao
-    ? `${posicao.posicao}º de ${posicao.total} hoje`
-    : ''
+  el.finalPosicao.textContent = posicao ? textoDaPosicao(posicao.posicao, posicao.total) : ''
 
-  renderPlacar(melhores, identidade?.numero ?? null)
+  renderPlacar(el.placarFinalLista, melhores, identidade?.numero ?? null)
 }
 
 /**
  * Ponto de entrada da renderização: recebe o estado e sincroniza a tela.
  * @param {import('../core/estado.js').Estado} estado
- * @param {import('../dados/ranking.js').Registro[]} melhores placar do dia
+ * @param {import('../dados/registro.js').Registro[]} melhores placar do dia
  */
 export function render(estado, melhores) {
   el.corpo.dataset.tela = estado.tela
+  // Uma tela visível por vez. `data-tela` no <body> continua existindo porque
+  // o CSS o usa para variações de tema, mas quem manda na visibilidade é aqui.
+  for (const tela of el.telas) {
+    tela.dataset.ativa = String(tela.dataset.para === estado.tela)
+  }
 
   switch (estado.tela) {
     case TELAS.ATRACAO:
-      renderRecorde(melhores)
+      renderPlacar(el.placarAtracaoLista, melhores, null)
       break
 
     case TELAS.PREPARO:
@@ -253,12 +307,14 @@ export function render(estado, melhores) {
 
     case TELAS.FEEDBACK: {
       const { ultima } = estado
-      const delta = calcularDelta(ultima.tempoMs, ultima.alvoMs)
+      const delta = deltaDaTentativa(ultima)
       escreverDisplay(el.feedbackTempo, ultima.parou ? formatarSegundos(ultima.tempoMs) : '--,--')
       el.feedbackTempo.dataset.faixa = faixaDaTentativa(ultima)
       el.feedbackDelta.textContent = ultima.parou ? formatarDelta(delta) : ''
       el.feedbackDelta.dataset.lado = delta < 0 ? 'antes' : 'depois'
       el.feedbackMensagem.textContent = estado.mensagem
+      renderOrcamento(estado.tentativas)
+
       // Reinicia a animação da barra do zero a cada tentativa.
       const barra = el.feedbackBarra.firstElementChild
       barra.style.animation = 'none'
@@ -267,8 +323,16 @@ export function render(estado, melhores) {
       break
     }
 
-    case TELAS.FINAL:
-      renderFinal(estado, melhores)
+    case TELAS.RESULTADO:
+      renderResultado(estado)
+      break
+
+    case TELAS.SABOR:
+      renderSabor(estado)
+      break
+
+    case TELAS.PLACAR:
+      renderPlacarFinal(estado, melhores)
       break
   }
 }

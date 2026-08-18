@@ -3,12 +3,12 @@
 ## O fluxo, em uma direção só
 
 ```
- pointerdown / keydown
+ pointerdown / keydown / arraste
           │
           ▼
    ┌─────────────┐   funções puras, sem DOM
    │ core/regras │   sortearAlvo · calcularErro · ehCravada · avaliarPartida
-   └─────────────┘
+   └─────────────┘   erroTotalDe · faixaDaTentativa · cravouDePrimeira
           │
           ▼
    ┌─────────────┐   fonte única de verdade
@@ -20,6 +20,9 @@
    │  ui/render  │   estado → DOM
    └─────────────┘
 ```
+
+O placar entra pela lateral: `dados/ranking.js` mantém um cache em memória e o
+`render` lê dele de forma síncrona. Ver a seção Placar no README.
 
 `main.js` é o único arquivo que conhece todas as peças. Ele não decide regra:
 decide **quando** perguntar à regra.
@@ -36,9 +39,9 @@ decide **quando** perguntar à regra.
    o placar lendo `textContent` de um elemento.
 
 3. **Troca de tela é troca de atributo.**
-   `body[data-tela]` decide qual `<section>` aparece. O HTML das cinco telas já
-   está no `index.html` e nunca é reconstruído — trocar de tela não custa reflow
-   de layout no meio de uma rodada.
+   `render` marca `data-ativa` na seção da vez. O HTML das sete telas já está no
+   `index.html` e nunca é reconstruído — trocar de tela não custa reflow de
+   layout no meio de uma rodada.
 
 ## Ciclo de vida de uma partida
 
@@ -47,8 +50,18 @@ ATRACAO ──toque──▶ PREPARO ──3·2·1·buzina──▶ RODADA ─�
                       ▲                                            │
                       └──────────── mais tentativas ───────────────┤
                                                                    ▼
-ATRACAO ◀── toque / 30 s de inatividade / erro não tratado ──── FINAL
+                                                              RESULTADO
+                                                                   │
+                                                                   ▼
+                                                                 SABOR
+                                                                   │
+                                                                   ▼
+ATRACAO ◀── toque / inatividade / erro não tratado ───────────── PLACAR
 ```
+
+Cada tela depois do jogo avança sozinha por inatividade: um visitante que larga
+o tablet no meio nunca deixa o totem parado para o próximo da fila. Mexer no
+carrossel adia o auto-avanço, para quem quer ver todas as latas ter tempo.
 
 `voltarParaAtracao()` é chamado na **entrada** da atração, nunca na saída da
 tela final. Assim todo caminho de erro também termina em estado limpo. A regra
@@ -79,11 +92,17 @@ subtração — por isso não é compensada.
 
 ## Testes
 
-`tests/regras.test.mjs` cobre as regras, a formatação, a identidade do jogador,
-a ordenação do placar e o cronômetro — 33 casos, `node --test`, zero
-dependências.
+`tests/regras.test.mjs` cobre as regras, a formatação, a identidade do jogador
+e o cronômetro. `tests/registro.test.mjs` cobre numeração, ordenação e
+saneamento do placar — compartilhados pelos dois armazenamentos e pelo
+servidor, então precisam se comportar igual nos três. São 50 casos ao todo,
+`node --test`, zero dependências.
 
 `tools/smoke.mjs` sobe o jogo num Chromium headless com viewport de iPad, joga
-uma partida inteira por toque, falha se houver erro de console ou requisição
-quebrada, e verifica que o totem volta limpo para a atração. É também o que
-gera os prints de `docs/prints/`.
+uma partida inteira por toque, navega o carrossel por botão e por teclado,
+confirma um sabor, e verifica que o totem volta limpo para a atração. Falha com
+qualquer erro de console ou requisição quebrada. É também o que gera os prints
+de `docs/prints/`.
+
+Ele espera `load` e não `networkidle`: a tela de atração busca o placar a cada
+5 s, então a rede nunca fica ociosa — por projeto.
