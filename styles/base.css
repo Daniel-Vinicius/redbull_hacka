@@ -1,0 +1,256 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Base — reset, fontes, blindagem de quiosque e o display numérico
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ---- Fontes ---------------------------------------------------------------
+   Os TTF entregues têm nomes internos de família inconsistentes entre si
+   ("Futura for Red Bull", "Futura for Red Bull Book", "... Cond"). Declarar
+   uma família própria e apontar arquivo por arquivo evita que um peso caia
+   silenciosamente em Arial. `font-display: block` porque a tipografia É a
+   identidade aqui: melhor esperar 100 ms que exibir a tela em fonte errada. */
+
+@font-face {
+  font-family: 'RB Futura Cond';
+  src: url('../public/media/fonts/futura-condbold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'RB Futura';
+  src: url('../public/media/fonts/futura-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'RB Futura';
+  src: url('../public/media/fonts/futura-medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'RB Futura';
+  src: url('../public/media/fonts/futura-book.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---- Reset ---------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+* {
+  margin: 0;
+  padding: 0;
+  /* Ninguém seleciona texto, arrasta imagem nem abre o menu de "copiar" por
+     toque longo num totem. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- Blindagem de quiosque ------------------------------------------------
+   `position: fixed` + `overflow: hidden` matam o rubber-band do iOS e o
+   pull-to-refresh. `overscroll-behavior` reforça em Safari 16+.             */
+
+html, body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--rb-fundo);
+  color: var(--txt-forte);
+  font-family: var(--fonte-texto);
+  font-weight: 400;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+/* `touch-action: manipulation` remove o atraso de ~300 ms do double-tap-zoom
+   em qualquer elemento tocável. */
+button, .tap { touch-action: manipulation; }
+
+img {
+  max-width: 100%;
+  display: block;
+  -webkit-user-drag: none;
+  pointer-events: none; /* imagem nunca rouba o toque do botão embaixo */
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* Quem navega por teclado precisa enxergar o foco; quem toca, não. */
+:focus-visible { outline: 3px solid var(--rb-gelo); outline-offset: 4px; }
+:focus:not(:focus-visible) { outline: none; }
+
+/* ---- Palco ---------------------------------------------------------------
+   As cinco telas ocupam a mesma área; só a que casa com body[data-tela]
+   é exibida. Trocar de tela é trocar um atributo — nunca reconstruir HTML. */
+
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: max(var(--gap-m), env(safe-area-inset-top))
+           max(var(--gap-m), env(safe-area-inset-right))
+           max(var(--gap-m), env(safe-area-inset-bottom))
+           max(var(--gap-m), env(safe-area-inset-left));
+}
+
+.tela { display: none; }
+body[data-tela='atracao']  .tela[data-para='atracao'],
+body[data-tela='preparo']  .tela[data-para='preparo'],
+body[data-tela='rodada']   .tela[data-para='rodada'],
+body[data-tela='feedback'] .tela[data-para='feedback'],
+body[data-tela='final']    .tela[data-para='final'] {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  animation: entrar var(--medio) var(--mola) both;
+}
+
+@keyframes entrar {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---- Tipografia utilitária ------------------------------------------------ */
+
+.kicker {
+  font-family: var(--fonte-texto);
+  font-weight: 500;
+  font-size: var(--t-mini);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--txt-fraco);
+}
+
+.mensagem {
+  font-family: var(--fonte-titulo);
+  font-size: var(--t-grande);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* ---- Display numérico ----------------------------------------------------
+   PROBLEMA: nenhum dos cinco TTF da Futura for Red Bull traz a feature
+   OpenType `tnum`, e o dígito "1" é 43% (Bold) a 56% (Light) mais estreito
+   que os demais. `font-variant-numeric: tabular-nums` não tem efeito nessas
+   fontes, então um número de 180 px salta lateralmente toda vez que um "1"
+   entra ou sai — num cronômetro, isso lê como bug.
+
+   SOLUÇÃO: a largura é travada no CSS, não na fonte. `render.js` emite um
+   <span> por caractere e cada célula recebe largura fixa em `em`.
+
+   As larguras abaixo saíram da tabela `hmtx` dos próprios TTF, não de chute:
+   na Bold, os dígitos avançam 0,686 em (só o "1" avança 0,391) e a vírgula
+   avança 0,343 em. Célula menor que o glifo faz o caractere transbordar por
+   cima do vizinho — foi exatamente o que aconteceu na primeira versão, com a
+   vírgula invadindo o dígito seguinte.                                     */
+
+.display {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  font-family: var(--fonte-texto);
+  font-weight: 700;
+  font-size: var(--t-display);
+  line-height: 0.9;
+  letter-spacing: 0;
+}
+
+.display .d   { width: 0.70em; text-align: center; }  /* glifo 0,686 em */
+.display .sep { width: 0.36em; text-align: center; }  /* glifo 0,343 em */
+
+.display--alvo  { color: var(--rb-amarelo); }
+.display--tempo { color: var(--rb-branco); }
+.display--tempo[data-faixa='cravou'] { color: var(--rb-amarelo); }
+.display--tempo[data-faixa='quase']  { color: var(--rb-gelo); }
+.display--tempo[data-faixa='longe']  { color: var(--rb-vermelho); }
+
+/* ---- Botões circulares ---------------------------------------------------- */
+
+.botao-gigante {
+  display: grid;
+  place-content: center;
+  gap: 0.1em;
+  width: var(--botao);
+  height: var(--botao);
+  border-radius: 50%;
+  font-family: var(--fonte-titulo);
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  color: var(--rb-branco);
+  background: var(--rb-vermelho);
+  /* Sombra estática: dá volume sem custar repintura durante a rodada. */
+  box-shadow: 0 12px 0 #8E0D28, 0 22px 40px rgb(0 0 0 / 45%);
+  transition: transform var(--rapido) var(--mola);
+  will-change: transform;
+}
+.botao-gigante:active { transform: translate3d(0, 8px, 0); }
+
+.botao-gigante__linha1 { font-size: var(--t-medio); opacity: 0.85; }
+.botao-gigante__linha2 { font-size: var(--t-grande); }
+
+/* Só na atração o botão pulsa — é o convite para o passante. Na tela de jogo
+   qualquer pulso viraria referência de ritmo (ver docs/DECISOES.md). */
+.botao-gigante--inicio { animation: pulsar 2.4s var(--mola) infinite; }
+
+@keyframes pulsar {
+  0%, 72%, 100% { transform: scale(1); }
+  80%           { transform: scale(1.045); }
+  88%           { transform: scale(0.995); }
+}
+
+.botao-gigante--parar {
+  width: clamp(220px, 52vmin, 420px);
+  height: clamp(220px, 52vmin, 420px);
+}
+/* O rótulo acompanha o diâmetro: num alvo de 420 px, texto de 40 px some. */
+.botao-gigante--parar .botao-gigante__linha2 { font-size: clamp(2.2rem, 9vmin, 5rem); }
+
+.botao-gigante--proximo {
+  width: auto;
+  height: auto;
+  border-radius: 999px;
+  padding: 0.7em 2em;
+}
+
+/* ---- Área secreta do operador --------------------------------------------
+   Canto superior esquerdo, invisível, sem foco por tabulação. Três toques
+   em menos de 1,5 s zeram o placar do dia sem sair do Acesso Guiado. */
+
+.operador {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 72px;
+  height: 72px;
+  opacity: 0;
+  z-index: 10;
+}
+
+/* ---- Acessibilidade ------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

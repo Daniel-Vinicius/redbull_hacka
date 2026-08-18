@@ -1,0 +1,17 @@
+{
+  "name": "cronometro-invisivel",
+  "version": "1.0.0",
+  "description": "Cronômetro Invisível — microativação digital Red Bull para feira de carreiras",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "assets": "node tools/optimize-assets.mjs",
+    "dev": "python3 -m http.server 8000",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "sharp": "^0.34.5",
+    "ttf2woff2": "^8.0.0"
+  }
+}

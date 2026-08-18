@@ -1,0 +1,81 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Tokens de design — Cronômetro Invisível
+   ══════════════════════════════════════════════════════════════════════════
+
+   PALETA
+   Nenhum brand book foi entregue com os materiais, então os azuis e o vermelho
+   foram AMOSTRADOS do próprio packshot fornecido
+   (assets/LATAS/INDIVIDUAIS/RED BULL_ED_MOLHADO_LATA_IR_FECHADA_ILUSTRADA.png):
+
+     #232968  núcleo do azul da lata      (16.811 px, cor cromática dominante)
+     #384493  azul médio                  (mediana dos 245.236 px azuis)
+     #5D70B5  azul de realce              (p90)
+     #BB2545  vermelho dos touros         (p90 dos 57.243 px vermelhos)
+
+   O packshot é uma ilustração "molhada", com sombreamento que escurece tudo.
+   Para uso em tela sobre fundo escuro, o vermelho foi clareado do #BB2545
+   medido para --rb-vermelho, e o amarelo (que aparece sombreado como #DBAC58)
+   foi levado ao tom saturado da marca. Ambas as derivações estão declaradas
+   no relatório.
+
+   PARTIDO ESCURO — não é gosto: os ícones cartoon fornecidos são preenchidos
+   em branco com contorno preto e sombreado azul-gelo (medido em 1_Wings_Icon:
+   80% de pixels neutros, 19% ciano ~#BBEEFF, 0% de vermelho ou amarelo).
+   Sobre fundo claro eles perdem o preenchimento e colapsam em linha.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ---- Cores ------------------------------------------------------------ */
+  --rb-fundo:      #0C1030;  /* fundo geral — navy quase preto, nunca #000 */
+  --rb-fundo-alto: #151B48;  /* superfícies elevadas, cards */
+  --rb-navy:       #232968;  /* medido: núcleo do azul da lata */
+  --rb-navy-medio: #384493;  /* medido: azul médio */
+  --rb-azul:       #5D70B5;  /* medido: realce */
+  --rb-gelo:       #BBEEFF;  /* medido nos ícones cartoon */
+  --rb-vermelho:   #D2143C;  /* derivado do #BB2545 medido, clareado para tela */
+  --rb-amarelo:    #FFC400;  /* derivado: amarelo saturado da marca */
+  --rb-branco:     #FFFFFF;
+  --rb-prata:      #C9CDD4;
+  --rb-prata-fraca: #7C84A3;
+
+  /* ---- Texto ------------------------------------------------------------ */
+  --txt-forte: var(--rb-branco);
+  --txt-medio: var(--rb-prata);
+  --txt-fraco: var(--rb-prata-fraca);
+
+  /* ---- Tipografia -------------------------------------------------------
+     Escala fluida: tudo relativo a `vmin` para funcionar igual em retrato,
+     paisagem e desktop, sem uma única media query de orientação.           */
+  --fonte-titulo: 'RB Futura Cond', 'Futura', 'Avenir Next Condensed', system-ui, sans-serif;
+  --fonte-texto:  'RB Futura', 'Futura', 'Avenir Next', system-ui, sans-serif;
+
+  --t-display:  clamp(4.5rem, 22vmin, 13rem);   /* números gigantes */
+  --t-titulo:   clamp(2.4rem, 9.5vmin, 6rem);   /* CRONÔMETRO / INVISÍVEL */
+  --t-grande:   clamp(1.5rem, 5vmin, 3rem);     /* manchetes de resultado */
+  --t-medio:    clamp(1.05rem, 2.9vmin, 1.6rem);
+  --t-corpo:    clamp(0.95rem, 2.3vmin, 1.25rem);
+  --t-mini:     clamp(0.7rem, 1.7vmin, 0.9rem);
+
+  /* ---- Espaço ----------------------------------------------------------- */
+  --gap-xs: clamp(0.25rem, 0.8vmin, 0.5rem);
+  --gap-s:  clamp(0.5rem, 1.6vmin, 1rem);
+  --gap-m:  clamp(1rem, 3vmin, 2rem);
+  --gap-g:  clamp(1.5rem, 5vmin, 3.5rem);
+
+  /* ---- Formas ----------------------------------------------------------- */
+  --raio-s: 12px;
+  --raio-m: 20px;
+  --botao: clamp(190px, 42vmin, 340px);   /* diâmetro dos botões circulares */
+
+  /* ---- Movimento ---------------------------------------------------------
+     Só `transform` e `opacity` são animados. Nada de box-shadow, blur ou
+     filter animados: a thread que pinta é a mesma que mede o tempo, e 40 ms
+     de pintura viram 40 ms de erro no cronômetro.                          */
+  --mola: cubic-bezier(0.22, 1, 0.36, 1);
+  --rapido: 160ms;
+  --medio: 320ms;
+}
+
+/* O jogo é desenhado só no escuro: força o esquema para que controles nativos
+   e a barra de status do iPad acompanhem, em vez de piscarem em claro. */
+:root { color-scheme: dark; }

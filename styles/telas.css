@@ -1,0 +1,367 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Telas — layout de cada uma das cinco etapas
+   ══════════════════════════════════════════════════════════════════════════
+   Um layout fluido só, sem media query de orientação e sem overlay de
+   "gire o tablet": em retrato as colunas viram linhas sozinhas. O mesmo
+   arquivo atende iPad em pé, iPad deitado e Chrome de notebook.            */
+
+
+/* ══ ATRAÇÃO ═══════════════════════════════════════════════════════════════ */
+
+.tela--atracao {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  justify-items: center;
+  gap: var(--gap-g);
+  /* Brilho radial atrás da lata: gradiente estático, custo zero de repintura */
+  background:
+    radial-gradient(60% 70% at 22% 50%, rgb(56 68 147 / 55%), transparent 70%),
+    radial-gradient(80% 90% at 100% 0%, rgb(35 41 104 / 60%), transparent 60%);
+}
+
+.atracao__lata {
+  width: auto;
+  height: min(72vh, 620px);
+  filter: drop-shadow(0 30px 50px rgb(0 0 0 / 55%));
+  animation: flutuar 5.5s ease-in-out infinite;
+}
+
+@keyframes flutuar {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-2deg); }
+  50%      { transform: translate3d(0, -16px, 0) rotate(1deg); }
+}
+
+.atracao__texto {
+  display: grid;
+  justify-items: start;
+  gap: var(--gap-m);
+  max-width: 34ch;
+}
+
+.titulo {
+  display: grid;
+  font-family: var(--fonte-titulo);
+  font-size: var(--t-titulo);
+  line-height: 0.86;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+.titulo__l1 { color: var(--rb-branco); }
+.titulo__l2 {
+  color: var(--rb-vermelho);
+  /* "INVISÍVEL" com contorno vazado: a palavra literalmente quase some */
+  -webkit-text-stroke: 2px var(--rb-vermelho);
+  color: transparent;
+}
+
+.subtitulo {
+  font-size: var(--t-medio);
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--txt-medio);
+  max-width: 26ch;
+}
+.subtitulo strong { color: var(--rb-gelo); font-weight: 500; }
+
+.atracao__premio {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-s);
+  font-size: var(--t-corpo);
+  font-weight: 500;
+  color: var(--rb-amarelo);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.atracao__premio img { width: 1.7em; height: auto; }
+
+.atracao__recorde {
+  grid-column: 1 / -1;
+  align-self: end;
+  font-size: var(--t-mini);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--txt-fraco);
+}
+.atracao__recorde strong { color: var(--rb-gelo); font-weight: 500; }
+
+
+/* ══ PREPARO ═══════════════════════════════════════════════════════════════ */
+
+.tela--preparo {
+  grid-template-rows: repeat(4, auto);
+  justify-items: center;
+  align-content: center;
+  gap: var(--gap-m);
+  text-align: center;
+}
+
+.alvo { display: grid; justify-items: center; gap: var(--gap-xs); }
+
+.alvo__rotulo,
+.alvo__unidade {
+  font-size: var(--t-mini);
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--txt-fraco);
+}
+
+.frase-preparo {
+  font-family: var(--fonte-titulo);
+  font-size: var(--t-medio);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rb-gelo);
+}
+
+.contagem {
+  display: grid;
+  place-content: center;
+  width: clamp(110px, 22vmin, 190px);
+  height: clamp(110px, 22vmin, 190px);
+  border-radius: 50%;
+  border: 4px solid var(--rb-navy-medio);
+  font-family: var(--fonte-titulo);
+  font-size: clamp(3rem, 11vmin, 6rem);
+  color: var(--rb-branco);
+}
+/* Cada troca de número reinicia a animação porque render.js recria o <span>. */
+.contagem span { display: block; animation: bater 480ms var(--mola) both; }
+.contagem[data-largada='true'] {
+  border-color: var(--rb-vermelho);
+  color: var(--rb-vermelho);
+}
+
+@keyframes bater {
+  from { transform: scale(1.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+
+/* ══ RODADA ════════════════════════════════════════════════════════════════ */
+
+.tela--rodada {
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  align-items: center;
+  gap: var(--gap-m);
+}
+
+.rodada__alvo {
+  font-size: var(--t-medio);
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--txt-fraco);
+}
+.rodada__alvo strong {
+  font-weight: 700;
+  font-size: 1.5em;
+  color: var(--rb-amarelo);
+  letter-spacing: 0;
+}
+
+.pips {
+  display: flex;
+  gap: var(--gap-s);
+  list-style: none;
+}
+.pips li {
+  width: clamp(10px, 2.2vmin, 16px);
+  height: clamp(10px, 2.2vmin, 16px);
+  border-radius: 50%;
+  background: var(--rb-navy);
+}
+.pips li[data-estado='feita']  { background: var(--rb-gelo); }
+.pips li[data-estado='atual']  { background: var(--rb-vermelho); transform: scale(1.35); }
+
+
+/* ══ FEEDBACK ══════════════════════════════════════════════════════════════ */
+
+.tela--feedback {
+  /* Sem linha 1fr: com ela o bloco encostava no topo e sobrava um vazio no
+     meio da tela. A barra de tempo sai do fluxo e fica ancorada embaixo. */
+  grid-template-rows: repeat(4, auto);
+  justify-items: center;
+  align-content: center;
+  gap: var(--gap-s);
+  text-align: center;
+}
+
+.delta {
+  font-family: var(--fonte-texto);
+  font-weight: 700;
+  font-size: var(--t-grande);
+  color: var(--txt-medio);
+}
+.delta[data-lado='antes'] { color: var(--rb-gelo); }
+.delta[data-lado='depois'] { color: var(--rb-vermelho); }
+
+.tela--feedback .mensagem { color: var(--rb-branco); max-width: 18ch; }
+
+/* Barra que mostra quanto falta para a próxima tentativa: o jogador enxerga
+   que a tela vai virar sozinha e não fica procurando um botão. */
+.barra-tempo {
+  position: absolute;
+  bottom: max(var(--gap-m), env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(340px, 60vw);
+  height: 4px;
+  border-radius: 2px;
+  background: var(--rb-navy);
+  overflow: hidden;
+}
+.barra-tempo i {
+  display: block;
+  height: 100%;
+  background: var(--rb-vermelho);
+  transform-origin: left;
+  animation: escorrer linear both;
+}
+@keyframes escorrer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+
+/* ══ FINAL ═════════════════════════════════════════════════════════════════ */
+
+.tela--final {
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'veredito jogador'
+    'tentativas placar'
+    'acao      placar'
+    'assinatura assinatura';
+  align-content: center;
+  align-items: center;
+  gap: var(--gap-m) var(--gap-g);
+  background:
+    radial-gradient(70% 60% at 50% 0%, rgb(56 68 147 / 45%), transparent 65%);
+}
+
+.final__veredito { grid-area: veredito; display: grid; justify-items: start; gap: var(--gap-xs); }
+.final__selo { width: clamp(64px, 12vmin, 112px); height: auto; }
+.final__titulo {
+  font-family: var(--fonte-titulo);
+  font-size: var(--t-titulo);
+  line-height: 0.9;
+  text-transform: uppercase;
+  color: var(--rb-branco);
+}
+body[data-vitoria='true'] .final__titulo { color: var(--rb-amarelo); }
+.final__linha { font-size: var(--t-corpo); color: var(--txt-medio); max-width: 30ch; }
+
+.tentativas { grid-area: tentativas; display: grid; gap: var(--gap-xs); list-style: none; }
+.tentativas li {
+  display: grid;
+  grid-template-columns: 2.2em 1fr auto;
+  align-items: center;
+  gap: var(--gap-s);
+  padding: 0.45em 0.9em;
+  border-radius: var(--raio-s);
+  background: var(--rb-fundo-alto);
+  font-size: var(--t-corpo);
+  font-weight: 500;
+}
+.tentativas li[data-cravada='true'] { background: var(--rb-navy); color: var(--rb-amarelo); }
+.tentativas .t-num { color: var(--txt-fraco); }
+.tentativas .t-erro { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.final__jogador {
+  grid-area: jogador;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-s);
+  padding: var(--gap-s) var(--gap-m);
+  border-radius: var(--raio-m);
+  background: var(--rb-fundo-alto);
+}
+.final__lata { height: clamp(96px, 20vmin, 190px); width: auto; }
+.final__identidade {
+  font-family: var(--fonte-titulo);
+  font-size: var(--t-grande);
+  text-transform: uppercase;
+  color: var(--rb-gelo);
+  line-height: 1;
+}
+.final__posicao { font-size: var(--t-corpo); color: var(--txt-fraco); }
+
+.placar { grid-area: placar; min-width: min(30vw, 260px); }
+.placar__titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-xs);
+  font-size: var(--t-mini);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--txt-fraco);
+  margin-bottom: var(--gap-s);
+}
+.placar__titulo img { width: 1.6em; height: auto; }
+.placar__lista { list-style: none; display: grid; gap: 2px; }
+.placar__lista li {
+  display: grid;
+  grid-template-columns: 1.8em 1fr auto;
+  gap: var(--gap-s);
+  padding: 0.35em 0.6em;
+  border-radius: 8px;
+  font-size: var(--t-corpo);
+  color: var(--txt-medio);
+}
+.placar__lista li[data-eu='true'] { background: var(--rb-vermelho); color: var(--rb-branco); font-weight: 700; }
+.placar__lista .p-pos { color: var(--txt-fraco); font-weight: 700; }
+.placar__lista li[data-eu='true'] .p-pos { color: var(--rb-branco); }
+.placar__lista .p-erro { font-variant-numeric: tabular-nums; }
+.placar__lista li.placar__vazio {
+  display: block;              /* sem isto, herda as 3 colunas e quebra palavra a palavra */
+  padding: 0.6em 0;
+  font-size: var(--t-corpo);
+  color: var(--txt-fraco);
+}
+
+.tela--final .botao-gigante--proximo { grid-area: acao; justify-self: start; }
+
+.assinatura {
+  grid-area: assinatura;
+  align-self: end;
+  font-size: var(--t-mini);
+  letter-spacing: 0.06em;
+  color: var(--txt-fraco);
+}
+
+
+/* ══ Retrato e telas estreitas ═════════════════════════════════════════════
+   Sem media query de ORIENTAÇÃO — só de largura. Um notebook estreito recebe
+   o mesmo empilhamento que um iPad em pé, o que é o comportamento correto
+   nos dois casos.                                                          */
+
+@media (max-aspect-ratio: 1/1), (max-width: 720px) {
+  .tela--atracao {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    align-content: center;
+    gap: var(--gap-m);
+  }
+  .atracao__lata { height: min(30vh, 300px); }
+  .atracao__texto { justify-items: center; text-align: center; }
+  .atracao__recorde { text-align: center; }
+
+  .tela--final {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'veredito'
+      'jogador'
+      'tentativas'
+      'placar'
+      'acao'
+      'assinatura';
+    justify-items: center;
+    align-content: center;
+    gap: var(--gap-s);
+  }
+  .final__veredito { justify-items: center; text-align: center; }
+  .tentativas, .placar { width: min(100%, 420px); }
+  .tela--final .botao-gigante--proximo { justify-self: center; }
+  .assinatura { text-align: center; }
+}
