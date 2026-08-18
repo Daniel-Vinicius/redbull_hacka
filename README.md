@@ -2,11 +2,15 @@
 
 **Microativação digital Red Bull — Feira de carreiras, Universidade Mackenzie.**
 
+### ▶ [Jogar agora](https://daniel-vinicius.github.io/redbull_hacka/) · [Vídeo de demonstração](https://www.youtube.com/watch?v=niGF_few3zc)
+
 Sorteamos um tempo. Você tenta parar o cronômetro nele.
 Só que o cronômetro não aparece.
 
 Uma partida inteira dura **cerca de 40 segundos** até o placar, não pede nome, não pede
 cadastro e não depende de rede para funcionar.
+
+**Equipe:** Daniel Vinícius · Murilo Miacci · Pedro Berbel · Matheus Nakata
 
 ---
 
