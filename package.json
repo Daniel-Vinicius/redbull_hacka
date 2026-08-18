@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "playwright": "^1.62.1",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.0",
     "ttf2woff2": "^8.0.0"
   }
 }
