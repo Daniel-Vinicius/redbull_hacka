@@ -24,30 +24,17 @@
  */
 
 import { createServer } from 'node:http'
-import { readFile, writeFile, rename, mkdir, stat } from 'node:fs/promises'
-import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
+import { readFile, writeFile, rename, mkdir } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { montarRegistro, proximoNumero, sanear } from '../src/dados/registro.js'
+import { servirEstatico } from './estaticos.mjs'
 
 const RAIZ = resolve(join(dirname(fileURLToPath(import.meta.url)), '..'))
 const ARQUIVO_PLACAR = join(RAIZ, 'dados', 'ranking.json')
 const PORTA = Number(process.env.PORTA ?? 8000)
 
-const TIPOS = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.webmanifest': 'application/manifest+json; charset=utf-8',
-  '.webp': 'image/webp',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.ico': 'image/x-icon',
-}
 
 // ═══ Placar ═════════════════════════════════════════════════════════════════
 
@@ -182,38 +169,6 @@ async function tratarApi(requisicao, resposta) {
   return true
 }
 
-/**
- * Serve um arquivo estático do projeto.
- * @param {string} caminhoUrl
- * @param {import('node:http').ServerResponse} resposta
- */
-async function servirEstatico(caminhoUrl, resposta) {
-  const relativo = decodeURIComponent(caminhoUrl === '/' ? '/index.html' : caminhoUrl)
-  const alvo = resolve(join(RAIZ, normalize(relativo)))
-
-  // Barreira de path traversal: `../../etc/passwd` sai da raiz do projeto.
-  if (alvo !== RAIZ && !alvo.startsWith(RAIZ + sep)) {
-    resposta.writeHead(403).end('403')
-    return
-  }
-
-  try {
-    const info = await stat(alvo)
-    if (info.isDirectory()) throw new Error('diretório')
-    const conteudo = await readFile(alvo)
-    resposta.writeHead(200, {
-      'content-type': TIPOS[extname(alvo).toLowerCase()] ?? 'application/octet-stream',
-      'content-length': conteudo.length,
-      // Durante o desenvolvimento, cache só atrapalha.
-      'cache-control': 'no-cache',
-    })
-    resposta.end(conteudo)
-  } catch {
-    resposta.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-    resposta.end('404')
-  }
-}
-
 const servidor = createServer(async (requisicao, resposta) => {
   try {
     const url = new URL(requisicao.url, `http://${requisicao.headers.host ?? 'localhost'}`)
@@ -221,7 +176,7 @@ const servidor = createServer(async (requisicao, resposta) => {
       await tratarApi(requisicao, resposta)
       return
     }
-    await servirEstatico(url.pathname, resposta)
+    await servirEstatico(RAIZ, url.pathname, resposta)
   } catch (erro) {
     // Um erro numa requisição não pode derrubar o servidor no meio do teste.
     console.error('erro:', erro.message)

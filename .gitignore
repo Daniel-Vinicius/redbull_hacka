@@ -1,3 +1,13 @@
-assets
+# Materiais originais da marca: 132 MB de PNG e TTF. O que o navegador usa é
+# a versão otimizada em public/media/, que É versionada.
+#
+# As barras iniciais importam. Sem elas, `assets` e `dados/` casariam com
+# QUALQUER pasta de mesmo nome em qualquer nível — foi assim que `src/dados/`
+# ficou de fora do commit e o jogo publicado no GitHub Pages quebrou com 404
+# em armazenamento-local.js e armazenamento-remoto.js.
+/assets/
+
+# Placar do servidor de desenvolvimento. Não faz parte da entrega.
+/dados/
+
 node_modules/
-dados/

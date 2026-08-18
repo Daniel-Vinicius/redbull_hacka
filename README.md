@@ -29,6 +29,7 @@ cliques **não funciona**, e no Safari do iPad nem isso é possível.
 |---|---|
 | `npm test` | 62 testes das regras e do formato do placar. Runner nativo do Node, zero dependências. |
 | `npm run smoke` | Joga duas partidas num Chromium headless com viewport de iPad — uma boa e uma ruim — e confere os dois desfechos. Falha com erro de console, 404, carrossel descentralizado ou derrota entrando no placar. Regrava os prints em `docs/prints/`. |
+| `npm run smoke:pages` | Monta o conjunto que o **git publica** (`git ls-files`), serve estático sem API nenhuma e joga em cima dele. É o ensaio do GitHub Pages. |
 | `npm run assets` | Regera `public/media/` e `src/core/sabores.gerado.js` a partir de `assets/`. Só é preciso se os materiais da marca mudarem. |
 
 ### Testar com várias pessoas ao mesmo tempo
@@ -185,9 +186,11 @@ styles/
   telas.css             layout de cada tela
 
 tools/
-  optimize-assets.mjs   132 MB de PNG → ~1,3 MB de WebP + WOFF2 + cores
+  optimize-assets.mjs   132 MB de PNG → ~1,5 MB de WebP + WOFF2 + cores
+  estaticos.mjs         servir arquivos, compartilhado pelos dois servidores
   servidor.mjs          estáticos + API de placar, zero dependências
-  smoke.mjs             partida completa headless + geração de prints
+  smoke.mjs             duas partidas headless + geração de prints
+  smoke-pages.mjs       o mesmo smoke, mas só com o que o git publica
 
 tests/                  62 testes, `node --test`
 docs/                   arquitetura, decisões e prints
@@ -236,6 +239,24 @@ O aparelho do evento é um **iPad 10ª geração, iPadOS 26.5.2**.
   o dígito "1" avança 0,391 em contra 0,686 em dos demais. Sem tratamento, o
   cronômetro trepida lateralmente. A largura é travada célula a célula no CSS,
   com os valores lidos da tabela `hmtx` das próprias fontes.
+
+---
+
+## Publicar
+
+O jogo é estático: sobe no GitHub Pages sem nenhuma configuração. Não existe
+API no ar — a sonda de placar leva 404, o jogo cai para `localStorage` sozinho,
+e é isso que o briefing pede.
+
+**Antes de publicar, rode `npm run smoke:pages`.** O `npm run smoke` joga contra
+a pasta de trabalho, onde todo arquivo existe; o Pages serve só o que está no
+repositório, e os dois conjuntos podem divergir em silêncio. Foi o que
+aconteceu uma vez: a linha `dados/` do `.gitignore` casava com **qualquer** pasta
+chamada `dados`, em qualquer nível, e levou `src/dados/` junto. O deploy ficou
+verde e o jogo quebrou no ar com 404 em `armazenamento-local.js`. Por isso os
+padrões do `.gitignore` são ancorados com barra inicial (`/assets/`, `/dados/`)
+e existe um teste que monta o conjunto publicável de verdade e joga em cima
+dele.
 
 ---
 

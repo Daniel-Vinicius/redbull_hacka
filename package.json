@@ -8,6 +8,7 @@
     "assets": "node tools/optimize-assets.mjs",
     "dev": "node tools/servidor.mjs",
     "smoke": "node tools/smoke.mjs",
+    "smoke:pages": "node tools/smoke-pages.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "devDependencies": {
